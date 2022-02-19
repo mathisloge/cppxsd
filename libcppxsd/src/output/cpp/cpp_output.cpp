@@ -3,19 +3,18 @@
 #define PRINT_T(type) std::cout << #type << std::endl;
 namespace cppxsd::out
 {
-void CppOutput::operator()(const meta::ElementType &t)
+void CppOutput::operator()(const meta::CustomType &t)
 {
-    boost::apply_visitor((*this), t);
+    PRINT_T(CustomType);
+    std::cout << "Name: " << t.name << " ";
+    boost::apply_visitor((*this), t.el_type);
 }
-void CppOutput::operator()(const meta::Element &t)
+
+void CppOutput::operator()(const meta::ByteArrayType &t)
 {
-    PRINT_T(Element);
-    for (const auto &e : t.childs)
-    {
-        std::cout << e.first << " => ";
-        boost::apply_visitor((*this), e.second);
-    }
+    PRINT_T(ByteArrayType);
 }
+
 void CppOutput::operator()(const meta::StringType &t)
 {
     PRINT_T(StringType);
@@ -64,14 +63,33 @@ void CppOutput::operator()(const meta::DoubleType &t)
 {
     PRINT_T(DoubleType);
 }
-void CppOutput::operator()(const meta::ElementRef &t)
+void CppOutput::operator()(const meta::TypeRef &t)
 {
-    PRINT_T(ElementRef);
+    PRINT_T(TypeRef);
+}
+void CppOutput::operator()(const meta::ListType &t)
+{
+    PRINT_T(ListType);
+    for (const auto &e : t)
+        (*this)(e.get());
 }
 void CppOutput::operator()(const meta::ListElement &t)
 {
     PRINT_T(ListElement);
+    boost::apply_visitor(*this, t.element);
 }
+void CppOutput::operator()(const meta::TypeDefinition &t)
+{
+    PRINT_T(TypeDefinition);
+    std::cout << t.name << " ";
+    boost::apply_visitor(*this, t.element);
+}
+
+void CppOutput::operator()(const meta::TimeDurationType &t)
+{
+    PRINT_T(TimeDurationType);
+}
+
 void CppOutput::operator()(const meta::UnsupportedBuildinType &t)
 {
     PRINT_T(UnsupportedBuildinType);

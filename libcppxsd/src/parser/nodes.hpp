@@ -53,15 +53,25 @@ inline constexpr std::string_view kNodeId_whitespace{"whitespace"};
 // end-todo
 
 // built-in types
+inline constexpr std::string_view kBuildinTypeId_base64Binary{"base64Binary"};
 inline constexpr std::string_view kBuildinTypeId_string{"string"};
 inline constexpr std::string_view kBuildinTypeId_boolean{"boolean"};
 inline constexpr std::string_view kBuildinTypeId_byte{"byte"};
+
+inline constexpr std::string_view kBuildinTypeId_date{"date"};
+inline constexpr std::string_view kBuildinTypeId_dateTime{"dateTime"};
+inline constexpr std::string_view kBuildinTypeId_duration{"duration"};
+
 inline constexpr std::string_view kBuildinTypeId_decimal{"decimal"};
 inline constexpr std::string_view kBuildinTypeId_double{"double"};
-inline constexpr std::string_view kBuildinTypeId_duration{"duration"};
 inline constexpr std::string_view kBuildinTypeId_float{"float"};
 inline constexpr std::string_view kBuildinTypeId_int{"int"};
 inline constexpr std::string_view kBuildinTypeId_integer{"integer"};
+inline constexpr std::string_view kBuildinTypeId_negativeInteger{"negativeInteger"};
+inline constexpr std::string_view kBuildinTypeId_nonNegativeInteger{"nonNegativeInteger"};
+inline constexpr std::string_view kBuildinTypeId_nonPositiveInteger{"nonPositiveInteger"};
+inline constexpr std::string_view kBuildinTypeId_normalizedString{"normalizedString"};
+inline constexpr std::string_view kBuildinTypeId_positiveInteger{"positiveInteger"};
 inline constexpr std::string_view kBuildinTypeId_long{"long"};
 inline constexpr std::string_view kBuildinTypeId_short{"short"};
 inline constexpr std::string_view kBuildinTypeId_unsignedByte{"unsignedByte"};
@@ -92,6 +102,14 @@ constexpr bool is_node_type(const std::string_view expected, const std::string_v
         return str.substr(3) == expected;
     }
     return str == expected;
+}
+
+constexpr bool is_node_type(const std::vector<std::string_view> expected, const std::string_view str)
+{
+    for (const auto &e : expected)
+        if (is_node_type(e, str))
+            return true;
+    return false;
 }
 
 meta::ElementType type_str_to_element_type(const std::string_view type_str);

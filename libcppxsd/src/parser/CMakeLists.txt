@@ -10,6 +10,7 @@ target_sources(libcppxsd PRIVATE
     process_group.cpp
     process_include.cpp
     process_node.cpp
+    process_restriction.cpp
     process_schema.cpp
     process_sequence.cpp
     process_simpleType.cpp

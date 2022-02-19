@@ -83,16 +83,24 @@ void process_url(State &state, const std::string &file_path)
 meta::ElementType type_str_to_element_type(const std::string_view type_str)
 {
     using NameType = std::pair<std::string_view, meta::ElementType>;
-    static const std::array<NameType, 15> kBaseMapping{
+    static const std::array<NameType, 23> kBaseMapping{
         NameType{kBuildinTypeId_string, meta::StringType{}},
+        NameType{kBuildinTypeId_base64Binary, meta::ByteArrayType{}},
         NameType{kBuildinTypeId_boolean, meta::BoolType{}},
         NameType{kBuildinTypeId_byte, meta::ByteType{}},
         NameType{kBuildinTypeId_decimal, meta::DoubleType{}},
         NameType{kBuildinTypeId_double, meta::DoubleType{}},
-        NameType{kBuildinTypeId_duration, meta::UnsupportedBuildinType{}},
+        NameType{kBuildinTypeId_date, meta::TimeDurationType{}},
+        NameType{kBuildinTypeId_dateTime, meta::TimeDurationType{}},
+        NameType{kBuildinTypeId_duration, meta::TimeDurationType{}},
         NameType{kBuildinTypeId_float, meta::FloatType{}},
         NameType{kBuildinTypeId_int, meta::IntType{}},
         NameType{kBuildinTypeId_integer, meta::LongType{}},
+        NameType{kBuildinTypeId_negativeInteger, meta::LongType{}},
+        NameType{kBuildinTypeId_nonNegativeInteger, meta::UnsignedLongType{}},
+        NameType{kBuildinTypeId_nonPositiveInteger, meta::LongType{}},
+        NameType{kBuildinTypeId_normalizedString, meta::StringType{}},
+        NameType{kBuildinTypeId_positiveInteger, meta::UnsignedLongType{}},
         NameType{kBuildinTypeId_long, meta::LongType{}},
         NameType{kBuildinTypeId_short, meta::ShortType{}},
         NameType{kBuildinTypeId_unsignedByte, meta::UnsignedByteType{}},
@@ -103,6 +111,6 @@ meta::ElementType type_str_to_element_type(const std::string_view type_str)
         return is_node_type(p.first, type_str);
     });
 
-    return (it != kBaseMapping.end()) ? it->second : meta::ElementRef{std::string{type_str}};
+    return (it != kBaseMapping.end()) ? it->second : meta::TypeRef{std::string{type_str}};
 }
 } // namespace cppxsd::parser

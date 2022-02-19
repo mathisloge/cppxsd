@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -10,9 +11,9 @@ template <typename T>
 struct BaseType
 {};
 
-struct Element;
+struct CustomType;
 struct ListElement;
-struct ElementRef; // global visibility
+struct TypeRef; // global visibility
 struct TypeDefinition;
 
 using StringType = BaseType<std::string>;
@@ -27,7 +28,10 @@ using UnsignedIntType = BaseType<uint32_t>;
 using UnsignedLongType = BaseType<uint64_t>;
 using FloatType = BaseType<float>;
 using DoubleType = BaseType<double>;
+using ByteArrayType = BaseType<std::vector<uint8_t>>;
+using TimeDurationType = BaseType<std::chrono::seconds>;
 using UnsupportedBuildinType = BaseType<void *>;
+
 using ElementType = boost::variant<UnsupportedBuildinType,
                                    StringType,
                                    BoolType,
@@ -41,18 +45,23 @@ using ElementType = boost::variant<UnsupportedBuildinType,
                                    UnsignedLongType,
                                    FloatType,
                                    DoubleType,
-                                   ElementRef,
-                                   boost::recursive_wrapper<ListElement>,
+                                   ByteArrayType,
+                                   TimeDurationType,
+                                   TypeRef,
+                                   std::vector<boost::recursive_wrapper<ListElement>>, //! ListType
                                    boost::recursive_wrapper<TypeDefinition>,
-                                   boost::recursive_wrapper<Element>>;
+                                   boost::recursive_wrapper<CustomType>>;
+using ListType = std::vector<boost::recursive_wrapper<ListElement>>;
 
 struct BaseElement
 {
     std::string name;
 };
 
-struct ElementRef : public BaseElement
-{};
+struct TypeRef : public BaseElement
+{
+    std::string ref_type_name;
+};
 struct ListElement : public BaseElement
 {
     int min;
@@ -66,10 +75,11 @@ struct TypeDefinition : public BaseElement
 };
 
 using VarName = std::string;
-struct Element
+struct CustomType : public BaseElement
 {
-    ElementRef base;
-    std::unordered_map<VarName, ElementType> childs;
+    TypeRef base;
+    bool abstract;
+    ElementType el_type;
 };
 
 struct GlobalNamespace

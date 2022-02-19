@@ -16,9 +16,7 @@ void process_simpleType(State &state, const pugi::xml_node &node)
         if (is_node_type(kNodeId_annotation, cn_name))
             process_annotation(state, cn);
         else if (is_node_type(kNodeId_restriction, cn_name))
-        {
-            PRINT_TODO_NODE(kNodeId_restriction);
-        }
+            process_restriction(state, cn);
         else if (is_node_type(kNodeId_list, cn_name))
         {
             PRINT_TODO_NODE(kNodeId_list);
