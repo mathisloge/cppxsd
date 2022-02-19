@@ -12,6 +12,13 @@ Parser::~Parser()
 {}
 void Parser::addFile(const fs::path &xsd_file)
 {
-    process_file(state, xsd_file);
+    try
+    {
+        process_file(state, xsd_file);
+    }
+    catch (const std::exception &ex)
+    {
+        std::cout << "FAILED: " << ex.what() << std::endl;
+    }
 }
 } // namespace cppxsd::parser

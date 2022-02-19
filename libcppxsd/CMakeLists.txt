@@ -2,6 +2,7 @@ include(GenerateExportHeader)
 
 find_package(pugixml CONFIG REQUIRED)
 find_package(CURL CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
 
 add_library(libcppxsd "")
 add_library(cppxsd::cppxsd ALIAS libcppxsd)
@@ -15,6 +16,7 @@ set_target_properties(libcppxsd PROPERTIES
 target_link_libraries(libcppxsd PRIVATE 
     pugixml::pugixml
     CURL::libcurl
+    fmt::fmt
 )
 target_include_directories(libcppxsd PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

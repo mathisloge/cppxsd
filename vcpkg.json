@@ -4,6 +4,7 @@
     "dependencies": [
         "catch2",
         "pugixml",
-        "curl"
+        "curl",
+        "fmt"
     ]
 }

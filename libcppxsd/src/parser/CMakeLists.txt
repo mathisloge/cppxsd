@@ -1,4 +1,5 @@
 target_sources(libcppxsd PRIVATE 
+    exceptions.cpp
     parser.cpp
     process_annotation.cpp
     process_choice.cpp
