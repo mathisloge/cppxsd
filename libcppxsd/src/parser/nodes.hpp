@@ -1,6 +1,7 @@
 #pragma once
 #include <string_view>
 #include <pugixml.hpp>
+#include "../meta/types.hpp"
 #include "defs.hpp"
 #include "state.hpp"
 namespace cppxsd::parser
@@ -17,6 +18,7 @@ inline constexpr std::string_view kNodeId_complexContent{"complexContent"};
 inline constexpr std::string_view kNodeId_simpleType{"simpleType"};
 inline constexpr std::string_view kNodeId_element{"element"};
 inline constexpr std::string_view kNodeId_documentation{"documentation"};
+inline constexpr std::string_view kNodeId_restriction{"restriction"};
 
 // todo: implement
 // not all of them are interesting for our use case but listed for completeness
@@ -42,7 +44,6 @@ inline constexpr std::string_view kNodeId_minInclusive{"minInclusive"};
 inline constexpr std::string_view kNodeId_notation{"notation"};
 inline constexpr std::string_view kNodeId_pattern{"pattern"};
 inline constexpr std::string_view kNodeId_redefine{"redefine"};
-inline constexpr std::string_view kNodeId_restriction{"restriction"};
 inline constexpr std::string_view kNodeId_selector{"selector"};
 inline constexpr std::string_view kNodeId_simpleContent{"simpleContent"};
 inline constexpr std::string_view kNodeId_totalDigits{"totalDigits"};
@@ -50,6 +51,24 @@ inline constexpr std::string_view kNodeId_union{"union"};
 inline constexpr std::string_view kNodeId_unique{"unique"};
 inline constexpr std::string_view kNodeId_whitespace{"whitespace"};
 // end-todo
+
+// built-in types
+inline constexpr std::string_view kBuildinTypeId_string{"string"};
+inline constexpr std::string_view kBuildinTypeId_boolean{"boolean"};
+inline constexpr std::string_view kBuildinTypeId_byte{"byte"};
+inline constexpr std::string_view kBuildinTypeId_decimal{"decimal"};
+inline constexpr std::string_view kBuildinTypeId_double{"double"};
+inline constexpr std::string_view kBuildinTypeId_duration{"duration"};
+inline constexpr std::string_view kBuildinTypeId_float{"float"};
+inline constexpr std::string_view kBuildinTypeId_int{"int"};
+inline constexpr std::string_view kBuildinTypeId_integer{"integer"};
+inline constexpr std::string_view kBuildinTypeId_long{"long"};
+inline constexpr std::string_view kBuildinTypeId_short{"short"};
+inline constexpr std::string_view kBuildinTypeId_unsignedByte{"unsignedByte"};
+inline constexpr std::string_view kBuildinTypeId_unsignedInt{"unsignedInt"};
+inline constexpr std::string_view kBuildinTypeId_unsignedLong{"unsignedLong"};
+inline constexpr std::string_view kBuildinTypeId_unsignedShort{"unsignedShort"};
+// end built-in types
 
 void process_file(State &state, const fs::path &file_path);
 void process_url(State &state, const std::string &file_path);
@@ -64,6 +83,7 @@ void process_complexContent(State &state, const pugi::xml_node &node);
 void process_simpleType(State &state, const pugi::xml_node &node);
 void process_element(State &state, const pugi::xml_node &node);
 void process_documentation(State &state, const pugi::xml_node &node);
+void process_restriction(State &state, const pugi::xml_node &node);
 
 constexpr bool is_node_type(const std::string_view expected, const std::string_view str)
 {
@@ -73,4 +93,6 @@ constexpr bool is_node_type(const std::string_view expected, const std::string_v
     }
     return str == expected;
 }
+
+meta::ElementType type_str_to_element_type(const std::string_view type_str);
 } // namespace cppxsd::parser

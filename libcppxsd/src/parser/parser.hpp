@@ -11,7 +11,7 @@ class Parser final
     ~Parser();
     void addFile(const fs::path &xsd_file);
 
-  private:
+  public:
     State state;
 };
 

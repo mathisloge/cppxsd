@@ -8,9 +8,8 @@ class OutputVisitor
   public:
     virtual ~OutputVisitor() = default;
 
-    virtual void operator()(const meta::Element &t) = 0;
     virtual void operator()(const meta::ElementType &t) = 0;
-    
+    virtual void operator()(const meta::Element &t) = 0;
     virtual void operator()(const meta::StringType &t) = 0;
     virtual void operator()(const meta::BoolType &t) = 0;
     virtual void operator()(const meta::ByteType &t) = 0;
@@ -25,6 +24,7 @@ class OutputVisitor
     virtual void operator()(const meta::DoubleType &t) = 0;
     virtual void operator()(const meta::ElementRef &t) = 0;
     virtual void operator()(const meta::ListElement &t) = 0;
+    virtual void operator()(const meta::UnsupportedBuildinType &t) = 0;
 };
 
 class Output : public OutputVisitor

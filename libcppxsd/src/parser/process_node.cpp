@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include "nodes.hpp"
 namespace cppxsd::parser
@@ -56,7 +57,7 @@ void process_url(State &state, const std::string &file_path)
     curl_easy_setopt(curl, CURLOPT_URL, file_path.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&data);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcppxsd-agent/1.0");
     const auto curl_success = curl_easy_perform(curl);
 
     /* check for errors */
@@ -77,5 +78,31 @@ void process_url(State &state, const std::string &file_path)
     }
 
     curl_easy_cleanup(curl);
+}
+
+meta::ElementType type_str_to_element_type(const std::string_view type_str)
+{
+    using NameType = std::pair<std::string_view, meta::ElementType>;
+    static const std::array<NameType, 15> kBaseMapping{
+        NameType{kBuildinTypeId_string, meta::StringType{}},
+        NameType{kBuildinTypeId_boolean, meta::BoolType{}},
+        NameType{kBuildinTypeId_byte, meta::ByteType{}},
+        NameType{kBuildinTypeId_decimal, meta::DoubleType{}},
+        NameType{kBuildinTypeId_double, meta::DoubleType{}},
+        NameType{kBuildinTypeId_duration, meta::UnsupportedBuildinType{}},
+        NameType{kBuildinTypeId_float, meta::FloatType{}},
+        NameType{kBuildinTypeId_int, meta::IntType{}},
+        NameType{kBuildinTypeId_integer, meta::LongType{}},
+        NameType{kBuildinTypeId_long, meta::LongType{}},
+        NameType{kBuildinTypeId_short, meta::ShortType{}},
+        NameType{kBuildinTypeId_unsignedByte, meta::UnsignedByteType{}},
+        NameType{kBuildinTypeId_unsignedInt, meta::UnsignedIntType{}},
+        NameType{kBuildinTypeId_unsignedLong, meta::UnsignedLongType{}},
+        NameType{kBuildinTypeId_unsignedShort, meta::UnsignedShortType{}}};
+    const auto it = std::find_if(kBaseMapping.begin(), kBaseMapping.end(), [&type_str](const NameType &p) {
+        return is_node_type(p.first, type_str);
+    });
+
+    return (it != kBaseMapping.end()) ? it->second : meta::ElementRef{std::string{type_str}};
 }
 } // namespace cppxsd::parser

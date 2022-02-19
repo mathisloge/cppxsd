@@ -6,9 +6,8 @@ namespace cppxsd::out
 class CppOutput : public Output
 {
   public:
-    void operator()(const meta::Element &t) override;
     void operator()(const meta::ElementType &t) override;
-
+    void operator()(const meta::Element &t) override;
     void operator()(const meta::StringType &t) override;
     void operator()(const meta::BoolType &t) override;
     void operator()(const meta::ByteType &t) override;
@@ -23,6 +22,7 @@ class CppOutput : public Output
     void operator()(const meta::DoubleType &t) override;
     void operator()(const meta::ElementRef &t) override;
     void operator()(const meta::ListElement &t) override;
+    void operator()(const meta::UnsupportedBuildinType &t) override;
 
   private:
     StructBuilder builder;

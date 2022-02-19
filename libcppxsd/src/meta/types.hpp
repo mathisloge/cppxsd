@@ -1,7 +1,8 @@
 #pragma once
 #include <string>
-#include <variant>
+#include <unordered_map>
 #include <vector>
+#include <boost/variant.hpp>
 namespace cppxsd::meta
 {
 
@@ -12,6 +13,7 @@ struct BaseType
 struct Element;
 struct ListElement;
 struct ElementRef; // global visibility
+struct TypeDefinition;
 
 using StringType = BaseType<std::string>;
 using BoolType = BaseType<bool>;
@@ -25,25 +27,24 @@ using UnsignedIntType = BaseType<uint32_t>;
 using UnsignedLongType = BaseType<uint64_t>;
 using FloatType = BaseType<float>;
 using DoubleType = BaseType<double>;
-
-struct MinMaxEl
-{
-    int min;
-    int max;
-};
-using ElementType = std::variant<StringType,
-                                 BoolType,
-                                 ByteType,
-                                 ShortType,
-                                 IntType,
-                                 LongType,
-                                 UnsignedByteType,
-                                 UnsignedShortType,
-                                 UnsignedIntType,
-                                 UnsignedLongType,
-                                 FloatType,
-                                 DoubleType,
-                                 ElementRef>;
+using UnsupportedBuildinType = BaseType<void *>;
+using ElementType = boost::variant<UnsupportedBuildinType,
+                                   StringType,
+                                   BoolType,
+                                   ByteType,
+                                   ShortType,
+                                   IntType,
+                                   LongType,
+                                   UnsignedByteType,
+                                   UnsignedShortType,
+                                   UnsignedIntType,
+                                   UnsignedLongType,
+                                   FloatType,
+                                   DoubleType,
+                                   ElementRef,
+                                   boost::recursive_wrapper<ListElement>,
+                                   boost::recursive_wrapper<TypeDefinition>,
+                                   boost::recursive_wrapper<Element>>;
 
 struct BaseElement
 {
@@ -51,9 +52,7 @@ struct BaseElement
 };
 
 struct ElementRef : public BaseElement
-{
-    std::string element_name;
-};
+{};
 struct ListElement : public BaseElement
 {
     int min;
@@ -61,16 +60,21 @@ struct ListElement : public BaseElement
     ElementType element;
 };
 
-using ElementChildType = std::variant<ElementType, ListElement>;
+struct TypeDefinition : public BaseElement
+{
+    ElementType element;
+};
+
+using VarName = std::string;
 struct Element
 {
     ElementRef base;
-    std::vector<ElementChildType> childs;
+    std::unordered_map<VarName, ElementType> childs;
 };
 
 struct GlobalNamespace
 {
-    std::vector<Element> elements;
+    std::unordered_map<VarName, ElementType> elements;
 };
 
 } // namespace cppxsd::meta

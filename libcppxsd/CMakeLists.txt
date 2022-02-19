@@ -1,5 +1,6 @@
 include(GenerateExportHeader)
 
+find_package(Boost REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(CURL CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
@@ -17,6 +18,7 @@ target_link_libraries(libcppxsd PRIVATE
     pugixml::pugixml
     CURL::libcurl
     fmt::fmt
+    Boost::boost
 )
 target_include_directories(libcppxsd PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

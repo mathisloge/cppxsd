@@ -1,6 +1,8 @@
 #include "cppxsd/cppxsd.hpp"
 #include <iostream>
 #include "parser/parser.hpp"
+
+#include "output/cpp/cpp_output.hpp"
 namespace cppxsd
 {
 void parse(const fs::path &file)
@@ -13,5 +15,10 @@ void parse(const fs::path &file)
         if (dir_entry.is_regular_file())
             p.addFile(dir_entry.path());
     }
+
+    out::CppOutput o{};
+
+    for (const auto &e : p.state.global.elements)
+        boost::apply_visitor(o, e.second);
 }
 } // namespace cppxsd

@@ -25,7 +25,15 @@ void process_schema(State &state, const pugi::xml_node &node)
         });
 
         if (it != kCallbacks.end())
+        {
             it->second(state, n);
+            if (!state.current_el_name.empty() && !state.current_el.empty())
+            {
+                state.global.elements.emplace(state.current_el_name, state.current_el);
+                state.current_el = {};
+                state.current_el_name = "";
+            }
+        }
         else
             throw ParseException{kNodeId_schema,
                                  {kNodeId_include,
