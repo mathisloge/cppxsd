@@ -1,0 +1,9 @@
+{
+    "name": "cppxsd",
+    "version-string": "main",
+    "dependencies": [
+        "catch2",
+        "pugixml",
+        "curl"
+    ]
+}
