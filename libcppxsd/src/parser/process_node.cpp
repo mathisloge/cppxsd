@@ -10,7 +10,7 @@ static void process_doc(State &state, const pugi::xml_document &doc)
         if (is_node_type(kNodeId_schema, node.name()))
             process_schema(state, node);
         else
-            std::cout << "unhandled: " << node.name() << std::endl;
+            throw ParseException{"document", {kNodeId_schema}, node};
     }
 }
 void process_file(State &state, const fs::path &file_path)
@@ -18,7 +18,7 @@ void process_file(State &state, const fs::path &file_path)
     const std::string file_path_str{file_path.string()};
     if (state.already_parsed.contains(file_path_str))
     {
-        std::cout << file_path << " already processed" << std::endl;
+        // todo check if path is same. might contain ../ etc.
         return;
     }
     std::cout << "processing " << file_path << std::endl;

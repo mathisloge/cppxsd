@@ -1,6 +1,7 @@
 #include <array>
 #include <functional>
 #include <iostream>
+#include "exceptions.hpp"
 #include "nodes.hpp"
 namespace cppxsd::parser
 {
@@ -26,7 +27,15 @@ void process_schema(State &state, const pugi::xml_node &node)
         if (it != kCallbacks.end())
             it->second(state, n);
         else
-            std::cout << "SCHMEA: UNHANDLED " << node_name << std::endl;
+            throw ParseException{kNodeId_schema,
+                                 {kNodeId_include,
+                                  kNodeId_import,
+                                  kNodeId_complexType,
+                                  kNodeId_group,
+                                  kNodeId_element,
+                                  kNodeId_simpleType,
+                                  kNodeId_annotation},
+                                 n};
     }
 }
 } // namespace cppxsd::parser

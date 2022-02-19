@@ -15,3 +15,14 @@ struct ParseException : public std::exception
   private:
     const std::string msg;
 };
+
+struct ParseAttrException : public std::exception
+{
+    ParseAttrException(const std::string_view current_processing_node_type,
+                       const std::string_view attr,
+                       const pugi::xml_node &node);
+    const char *what() const noexcept override;
+
+  private:
+    const std::string msg;
+};

@@ -1,4 +1,4 @@
-#include <iostream>
+#include "exceptions.hpp"
 #include "nodes.hpp"
 namespace cppxsd::parser
 {
@@ -7,7 +7,7 @@ void process_include(State &state, const pugi::xml_node &node)
     const auto attr = node.attribute("schemaLocation");
 
     if (!attr)
-        throw std::runtime_error("invalid include attribute");
+        throw ParseAttrException(kNodeId_include, "schemaLocation", node);
 
     const auto org_xsd = state.current_file;
 
