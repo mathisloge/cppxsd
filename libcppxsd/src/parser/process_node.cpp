@@ -113,4 +113,59 @@ meta::ElementType type_str_to_element_type(const std::string_view type_str)
 
     return (it != kBaseMapping.end()) ? it->second : meta::TypeRef{std::string{type_str}};
 }
+
+void process_node(const std::string_view curr_node,
+                  const std::set<std::string_view> allowed,
+                  State &state,
+                  const pugi::xml_node &node)
+{
+    using CbPtr = void (*)(State &, const pugi::xml_node &);
+    using CbPair = std::pair<std::string_view, CbPtr>;
+    constexpr std::array<CbPair, 12> kCallbacks{CbPair{kNodeId_include, process_include},
+                                                CbPair{kNodeId_import, process_include},
+                                                CbPair{kNodeId_complexType, process_complexType},
+                                                CbPair{kNodeId_group, process_group},
+                                                CbPair{kNodeId_element, process_element},
+                                                CbPair{kNodeId_simpleType, process_simpleType},
+                                                CbPair{kNodeId_annotation, process_annotation},
+                                                CbPair{kNodeId_element, process_element},
+                                                CbPair{kNodeId_documentation, process_documentation},
+                                                CbPair{kNodeId_restriction, process_restriction},
+                                                CbPair{kNodeId_choice, process_choice},
+                                                CbPair{kNodeId_complexContent, process_complexContent}};
+
+    std::vector<CbPair> allowed_cbs;
+    allowed_cbs.reserve(kCallbacks.size());
+    std::copy_if(kCallbacks.begin(), kCallbacks.end(), std::back_inserter(allowed_cbs), [&allowed](const CbPair &cb) {
+        return allowed.contains(cb.first);
+    });
+
+    const auto node_name = node.name();
+    const auto it = std::find_if(allowed_cbs.begin(), allowed_cbs.end(), [&node_name](const auto &cb) {
+        return is_node_type(cb.first, node_name);
+    });
+
+    if (it != allowed_cbs.end())
+    {
+        it->second(state, node);
+        if (!state.current_el_name.empty() && !state.current_el.empty())
+        {
+            state.global.elements.emplace(state.current_el_name, state.current_el);
+            state.current_el = {};
+            state.current_el_name = "";
+        }
+    }
+    else
+        throw ParseException{curr_node, allowed, node};
+}
+
+pugi::xml_attribute require_attr(const std::string_view curr_node,
+                                 const std::string_view attr,
+                                 const pugi::xml_node &node)
+{
+    const auto xml_attr = node.attribute(attr.data());
+    if (!xml_attr)
+        throw ParseAttrException{curr_node, attr, node};
+    return xml_attr;
+}
 } // namespace cppxsd::parser

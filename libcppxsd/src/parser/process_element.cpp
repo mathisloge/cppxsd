@@ -14,20 +14,7 @@ void process_element(State &state, const pugi::xml_node &node)
         auto inline_type_node = node.find_child([](const auto &n) {
             return is_node_type({kNodeId_simpleType, kNodeId_complexType}, n.name());
         });
-        if (!inline_type_node)
-            throw ParseAttrException(kNodeId_element, "type", node);
-
-        const auto type_node_name = inline_type_node.name();
-        if (is_node_type(kNodeId_simpleType, type_node_name))
-        {
-            process_simpleType(state, inline_type_node);
-        }
-        else if (is_node_type(kNodeId_complexType, type_node_name))
-        {
-            process_complexType(state, inline_type_node);
-        }
-        else
-            throw ParseException(kNodeId_element, {kNodeId_simpleType, kNodeId_complexType}, inline_type_node);
+        process_node(kNodeId_element, {kNodeId_simpleType, kNodeId_complexType}, state, inline_type_node);
 
         state.current_el = meta::CustomType{type_name, meta::TypeRef{}, false, std::move(state.current_el)};
         state.current_el_name = type_name;

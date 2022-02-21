@@ -1,6 +1,7 @@
 #pragma once
 #include <string_view>
 #include <pugixml.hpp>
+#include <set>
 #include "../meta/types.hpp"
 #include "defs.hpp"
 #include "state.hpp"
@@ -112,5 +113,7 @@ constexpr bool is_node_type(const std::vector<std::string_view> expected, const 
     return false;
 }
 
+void process_node(const std::string_view curr_node, const std::set<std::string_view> allowed, State& state, const pugi::xml_node& node);
 meta::ElementType type_str_to_element_type(const std::string_view type_str);
+pugi::xml_attribute require_attr(const std::string_view curr_node, const std::string_view attr, const pugi::xml_node &node);
 } // namespace cppxsd::parser
