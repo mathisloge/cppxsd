@@ -12,8 +12,8 @@ void process_complexType(State &state, const pugi::xml_node &node)
 
     meta::CustomType el{type_name, meta::TypeRef{}, is_abstract};
 
-    const auto anno_node = node.find_child([](const auto &n) { return is_node_type(kNodeId_annotation, n.name()); });
-    const auto content_node = node.find_child([](const auto &n) { return is_node_type(kValidChilds, n.name()); });
+    const auto anno_node = node_find_child_of(node, {kNodeId_annotation});
+    const auto content_node = node_find_child_of(node, kValidChilds);
 
     if (anno_node)
     {
@@ -31,37 +31,11 @@ void process_complexType(State &state, const pugi::xml_node &node)
         state.current_el_name = std::move(type_name);
         return;
     }
-    const auto cname = content_node.name();
-    if (is_node_type(kNodeId_simpleContent, cname))
-    {
-        PRINT_TODO_NODE(kNodeId_simpleContent);
-    }
-    else if (is_node_type(kNodeId_complexContent, cname))
-    {
-        PRINT_TODO_NODE(kNodeId_complexContent);
-    }
-    else if (is_node_type(kNodeId_group, cname))
-    {
-        PRINT_TODO_NODE(kNodeId_group);
-    }
-    else if (is_node_type(kNodeId_all, cname))
-    {
-        PRINT_TODO_NODE(kNodeId_all);
-    }
-    else if (is_node_type(kNodeId_choice, cname))
-        process_choice(state, content_node);
-    else if (is_node_type(kNodeId_sequence, cname))
-        process_sequence(state, content_node);
-    else
-        throw ParseException{kNodeId_complexType,
-                             {kNodeId_simpleContent,
-                              kNodeId_complexContent,
-                              kNodeId_group,
-                              kNodeId_all,
-                              kNodeId_choice,
-                              kNodeId_sequence},
-                             content_node};
-
+    process_node(
+        kNodeId_complexType,
+        {kNodeId_simpleContent, kNodeId_complexContent, kNodeId_group, kNodeId_all, kNodeId_choice, kNodeId_sequence},
+        state,
+        node);
     el.el_type = std::move(state.current_el);
     state.current_el = std::move(el);
     state.current_el_name = std::move(type_name);

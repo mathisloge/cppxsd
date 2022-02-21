@@ -4,11 +4,7 @@ namespace cppxsd::parser
 {
 void process_include(State &state, const pugi::xml_node &node)
 {
-    const auto attr = node.attribute("schemaLocation");
-
-    if (!attr)
-        throw ParseAttrException(kNodeId_include, "schemaLocation", node);
-
+    const auto attr =  require_attr(kNodeId_include, "schemaLocation", node);
     const auto org_xsd = state.current_file;
 
     const std::string include_uri{attr.as_string()};

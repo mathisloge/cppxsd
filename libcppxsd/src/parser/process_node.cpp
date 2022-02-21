@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <iostream>
+#include <map>
 #include "nodes.hpp"
 namespace cppxsd::parser
 {
@@ -134,11 +135,13 @@ void process_node(const std::string_view curr_node,
                                                 CbPair{kNodeId_choice, process_choice},
                                                 CbPair{kNodeId_complexContent, process_complexContent}};
 
-    std::vector<CbPair> allowed_cbs;
-    allowed_cbs.reserve(kCallbacks.size());
-    std::copy_if(kCallbacks.begin(), kCallbacks.end(), std::back_inserter(allowed_cbs), [&allowed](const CbPair &cb) {
-        return allowed.contains(cb.first);
-    });
+    if (!node)
+        throw ParseException{curr_node, allowed, node};
+    std::map<std::string_view, CbPtr> allowed_cbs;
+    std::copy_if(kCallbacks.begin(),
+                 kCallbacks.end(),
+                 std::inserter(allowed_cbs, allowed_cbs.end()),
+                 [&allowed](const CbPair &cb) { return allowed.contains(cb.first); });
 
     const auto node_name = node.name();
     const auto it = std::find_if(allowed_cbs.begin(), allowed_cbs.end(), [&node_name](const auto &cb) {
@@ -167,5 +170,10 @@ pugi::xml_attribute require_attr(const std::string_view curr_node,
     if (!xml_attr)
         throw ParseAttrException{curr_node, attr, node};
     return xml_attr;
+}
+
+pugi::xml_node node_find_child_of(const pugi::xml_node &node, const std::vector<std::string_view> find)
+{
+    return node.find_child([&](const auto &n) { return is_node_type(find, n.name()); });
 }
 } // namespace cppxsd::parser
