@@ -47,7 +47,6 @@ void process_url(State &state, const std::string &file_path)
 {
     if (state.already_parsed.contains(file_path))
     {
-        std::cout << file_path << " already processed" << std::endl;
         return;
     }
 
@@ -126,10 +125,10 @@ void process_node(const std::string_view curr_node,
                                                 CbPair{kNodeId_import, process_include},
                                                 CbPair{kNodeId_complexType, process_complexType},
                                                 CbPair{kNodeId_group, process_group},
-                                                CbPair{kNodeId_element, process_element},
                                                 CbPair{kNodeId_simpleType, process_simpleType},
                                                 CbPair{kNodeId_annotation, process_annotation},
                                                 CbPair{kNodeId_element, process_element},
+                                                CbPair{kNodeId_extension, process_extension},
                                                 CbPair{kNodeId_documentation, process_documentation},
                                                 CbPair{kNodeId_restriction, process_restriction},
                                                 CbPair{kNodeId_choice, process_choice},

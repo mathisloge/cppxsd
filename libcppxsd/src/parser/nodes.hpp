@@ -2,7 +2,7 @@
 #include <set>
 #include <string_view>
 #include <pugixml.hpp>
-#include "../meta/types.hpp"
+#include "../meta/ast.hpp"
 #include "defs.hpp"
 #include "state.hpp"
 namespace cppxsd::parser
@@ -93,6 +93,7 @@ void process_choice(State &state, const pugi::xml_node &node);
 void process_complexContent(State &state, const pugi::xml_node &node);
 void process_simpleType(State &state, const pugi::xml_node &node);
 void process_element(State &state, const pugi::xml_node &node);
+void process_extension(State &state, const pugi::xml_node &node);
 void process_documentation(State &state, const pugi::xml_node &node);
 void process_restriction(State &state, const pugi::xml_node &node);
 

@@ -77,7 +77,7 @@ struct TypeDefinition : public BaseElement
 using VarName = std::string;
 struct CustomType : public BaseElement
 {
-    TypeRef base;
+    std::string base;
     bool abstract;
     ElementType el_type;
 };

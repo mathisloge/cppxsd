@@ -7,6 +7,7 @@ target_sources(libcppxsd PRIVATE
     process_complexType.cpp
     process_documentation.cpp
     process_element.cpp
+    process_extension.cpp
     process_group.cpp
     process_include.cpp
     process_node.cpp

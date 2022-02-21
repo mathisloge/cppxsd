@@ -8,8 +8,7 @@ void process_include(State &state, const pugi::xml_node &node)
     const auto org_xsd = state.current_file;
 
     const std::string include_uri{attr.as_string()};
-    std::cout << "INLCUDE " << node.name() << " => " << include_uri << std::endl;
-
+    
     if (include_uri.starts_with("http://") || include_uri.starts_with("https://"))
     {
         process_url(state, include_uri);

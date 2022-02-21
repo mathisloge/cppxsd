@@ -10,7 +10,7 @@ void process_complexType(State &state, const pugi::xml_node &node)
     const auto abstract_attr = node.attribute("abstract");
     const bool is_abstract = abstract_attr ? abstract_attr.as_bool() : false;
 
-    meta::CustomType el{type_name, meta::TypeRef{}, is_abstract};
+    meta::CustomType el{type_name, {}, is_abstract};
 
     const auto anno_node = node_find_child_of(node, {kNodeId_annotation});
     const auto content_node = node_find_child_of(node, kValidChilds);
@@ -22,11 +22,6 @@ void process_complexType(State &state, const pugi::xml_node &node)
 
     if (!content_node)
     {
-        std::cout << "C====" << std::endl;
-        for (const auto &n : node)
-        {
-            std::cout << "C " << n.name() << std::endl;
-        }
         state.current_el = meta::UnsupportedBuildinType{};
         state.current_el_name = std::move(type_name);
         return;

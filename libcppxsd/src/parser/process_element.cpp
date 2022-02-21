@@ -9,11 +9,11 @@ void process_element(State &state, const pugi::xml_node &node)
     const auto type_attr = node.attribute("type");
     if (!type_attr)
     {
-        
+
         auto inline_type_node = node_find_child_of(node, {kNodeId_simpleType, kNodeId_complexType});
         process_node(kNodeId_element, {kNodeId_simpleType, kNodeId_complexType}, state, inline_type_node);
 
-        state.current_el = meta::CustomType{type_name, meta::TypeRef{}, false, std::move(state.current_el)};
+        state.current_el = meta::CustomType{type_name, {}, false, std::move(state.current_el)};
         state.current_el_name = type_name;
     }
     else

@@ -1,7 +1,7 @@
 #pragma once
 #include <unordered_set>
 #include <curl/curl.h>
-#include "../meta/types.hpp"
+#include "../meta/ast.hpp"
 #include "defs.hpp"
 namespace cppxsd::parser
 {
