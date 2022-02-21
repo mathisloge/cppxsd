@@ -122,7 +122,7 @@ void process_node(const std::string_view curr_node,
 {
     using CbPtr = void (*)(State &, const pugi::xml_node &);
     using CbPair = std::pair<std::string_view, CbPtr>;
-    constexpr std::array<CbPair, 12> kCallbacks{CbPair{kNodeId_include, process_include},
+    constexpr std::array<CbPair, 13> kCallbacks{CbPair{kNodeId_include, process_include},
                                                 CbPair{kNodeId_import, process_include},
                                                 CbPair{kNodeId_complexType, process_complexType},
                                                 CbPair{kNodeId_group, process_group},
@@ -133,7 +133,8 @@ void process_node(const std::string_view curr_node,
                                                 CbPair{kNodeId_documentation, process_documentation},
                                                 CbPair{kNodeId_restriction, process_restriction},
                                                 CbPair{kNodeId_choice, process_choice},
-                                                CbPair{kNodeId_complexContent, process_complexContent}};
+                                                CbPair{kNodeId_complexContent, process_complexContent},
+                                                CbPair{kNodeId_sequence, process_sequence}};
 
     if (!node)
         throw ParseException{curr_node, allowed, node};

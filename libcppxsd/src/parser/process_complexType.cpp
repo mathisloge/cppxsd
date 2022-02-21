@@ -35,7 +35,7 @@ void process_complexType(State &state, const pugi::xml_node &node)
         kNodeId_complexType,
         {kNodeId_simpleContent, kNodeId_complexContent, kNodeId_group, kNodeId_all, kNodeId_choice, kNodeId_sequence},
         state,
-        node);
+        content_node);
     el.el_type = std::move(state.current_el);
     state.current_el = std::move(el);
     state.current_el_name = std::move(type_name);
