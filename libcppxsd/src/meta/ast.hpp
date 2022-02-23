@@ -1,4 +1,5 @@
 #pragma once
+#include "ast_new.hpp"
 #include <chrono>
 #include <string>
 #include <unordered_map>
