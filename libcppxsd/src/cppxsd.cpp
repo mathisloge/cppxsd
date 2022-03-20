@@ -18,7 +18,7 @@ void parse(const fs::path &file)
 
     out::CppOutput o{};
 
-    for (const auto &e : p.state.global.elements)
-        boost::apply_visitor(o, e.second);
+    for (const auto &e : p.state.schemas)
+        o(e);
 }
 } // namespace cppxsd
