@@ -6,6 +6,7 @@
 #include <boost/variant.hpp>
 namespace cppxsd::meta
 {
+struct schema;
 struct element;
 struct complexType;
 struct simpleType;
@@ -38,11 +39,13 @@ using DoubleType = double;
 using ByteArrayType = std::vector<uint8_t>;
 using TimeDurationType = std::chrono::seconds;
 
-struct ID
-{};
+struct Id
+{
+    std::string id;
+};
 }; // namespace datatypes
 
-using OptionalID = std::optional<datatypes::ID>;
+using OptionalId = std::optional<datatypes::Id>;
 
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-documentation
 struct documentation
@@ -185,16 +188,25 @@ struct redefine : XsdBaseElement
 
 //! https://www.w3schools.com/xml/el_include.asp
 struct xsd_include
-{};
+{
+    OptionalId id;
+    std::weak_ptr<schema> schema; //! required
+};
 
 //! https://www.w3schools.com/xml/el_import.asp
 struct xsd_import
-{};
+{
+    OptionalId id;
+    std::string namespace_uri;
+    std::weak_ptr<schema> schema_location;
+};
 //! https://www.w3schools.com/xml/el_schema.asp
 struct schema
 {
+    std::string file_name;
+    std::string uri;
     // attributes
-    OptionalID id;
+    OptionalId id;
     // elements
     using ImportContent = boost::variant<xsd_include, xsd_import, redefine, annotation>;
     std::vector<ImportContent> imports;

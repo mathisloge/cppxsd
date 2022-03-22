@@ -9,6 +9,6 @@ struct State
 {
     std::unordered_set<std::string> already_parsed;
     fs::path current_file;
-    std::vector<meta::schema> schemas;
+    std::vector<std::shared_ptr<meta::schema>> schemas;
 };
 } // namespace cppxsd::parser

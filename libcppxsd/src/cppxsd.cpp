@@ -7,18 +7,18 @@ namespace cppxsd
 {
 void parse(const fs::path &file)
 {
-    parser::Parser p{};
+    parser::Parser p{file};
 
     for (auto const &dir_entry : fs::recursive_directory_iterator(file))
     {
         std::cout << dir_entry << '\n';
         if (dir_entry.is_regular_file())
-            p.addFile(dir_entry.path());
+            p.parse(dir_entry.path().string());
     }
 
     out::CppOutput o{};
 
     for (const auto &e : p.state.schemas)
-        o(e);
+        o(*e);
 }
 } // namespace cppxsd

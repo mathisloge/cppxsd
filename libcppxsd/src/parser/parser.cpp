@@ -3,20 +3,28 @@
 #include <iostream>
 #include <map>
 #include <curl/easy.h>
+#include <fmt/format.h>
 #include <pugixml.hpp>
 #include "helpers.hpp"
 #include "keys.hpp"
 namespace cppxsd::parser
 {
-Parser::Parser()
-{}
+static bool is_url(const std::string_view uri)
+{
+    return uri.starts_with("http://") || uri.starts_with("https://");
+}
+Parser::Parser(const fs::path &working_dir)
+    : working_dir_{working_dir}
+{
+    std::cout << "WORKING DIR " << working_dir << std::endl;
+}
 Parser::~Parser()
 {}
-void Parser::addFile(const fs::path &xsd_file)
+void Parser::parse(const std::string &xsd_file)
 {
     try
     {
-        parseFile(xsd_file);
+        tryParseUri(xsd_file);
     }
     catch (const std::exception &ex)
     {
@@ -35,22 +43,24 @@ void Parser::parseFile(const fs::path &xsd_file)
     state.current_file = xsd_file;
 
     pugi::xml_document doc;
-    pugi::xml_parse_result result = doc.load_file(file_path_str.c_str());
+    pugi::xml_parse_result result = doc.load_file(xsd_file.generic_string().c_str());
     if (!result)
         throw std::runtime_error("failed to parse");
 
-    parseDocument(doc);
+    const auto rel_path = fs::relative(xsd_file, working_dir_);
+    current_file_dir_ = xsd_file.parent_path();
+    parseDocument(doc, rel_path.string());
 
     state.already_parsed.emplace(file_path_str);
 }
 
-void Parser::parseDocument(const pugi::xml_document &doc)
+void Parser::parseDocument(const pugi::xml_document &doc, const std::string &uri)
 {
     for (const auto &node : doc)
     {
         const auto child_type = node_name_to_type(node.name());
         if (child_type == NodeType::schema)
-            parseSchema(node);
+            parseSchema(node, uri);
         else
             throw ParseException{"document", {kNodeId_schema}, node};
     }
@@ -92,7 +102,7 @@ void Parser::parseUrl(const std::string &file_path)
         if (!result)
             throw std::runtime_error("failed to parse");
 
-        parseDocument(doc);
+        parseDocument(doc, file_path);
 
         state.already_parsed.emplace(file_path);
     }
@@ -104,7 +114,8 @@ constexpr bool contains_type(const std::vector<NodeType> &types, const NodeType 
 {
     return std::any_of(std::begin(types), std::end(types), [curr_type](const auto type) { return type == curr_type; });
 }
-void Parser::parseSchema(const pugi::xml_node &node)
+
+void Parser::parseSchema(const pugi::xml_node &node, const std::string &uri)
 {
     const auto parse_import = [this](const NodeType type,
                                      const pugi::xml_node &to_parse) -> meta::schema::ImportContent {
@@ -124,7 +135,8 @@ void Parser::parseSchema(const pugi::xml_node &node)
         }
     };
 
-    current = meta::schema{};
+    auto schema = std::make_shared<meta::schema>();
+    schema->uri = uri;
 
     bool finished_import = false;
     for (const auto &child : node)
@@ -133,7 +145,7 @@ void Parser::parseSchema(const pugi::xml_node &node)
         if (!finished_import &&
             contains_type({NodeType::include, NodeType::import, NodeType::redefine, NodeType::annotation}, child_type))
         {
-            current.imports.emplace_back(parse_import(child_type, child));
+            schema->imports.emplace_back(parse_import(child_type, child));
         }
         else
         {
@@ -149,7 +161,7 @@ void Parser::parseSchema(const pugi::xml_node &node)
             {}
             else if (child_type == NodeType::annotation)
             {
-                current.annotations.emplace_back(parseAnnotation(child));
+                schema->annotations.emplace_back(parseAnnotation(child));
             }
             else
             {
@@ -167,16 +179,53 @@ void Parser::parseSchema(const pugi::xml_node &node)
         }
     }
 
-    state.schemas.emplace_back(std::move(current));
+    state.schemas.emplace_back(std::move(schema));
 }
 
+Parser::SchemaPtr Parser::tryParseUri(const std::string &uri)
+{
+    auto import_schema = getSchemaFromUri(uri);
+    if (import_schema)
+        return import_schema;
+    if (is_url(uri))
+    {
+        parseUrl(uri);
+    }
+    else
+    {
+        const fs::path include_path{uri};
+        if (include_path.is_relative())
+            parseFile(current_file_dir_ / include_path);
+        else
+            parseFile(include_path);
+    }
+    return getSchemaFromUri(uri);
+}
 meta::xsd_include Parser::parseInclude(const pugi::xml_node &node)
 {
-    return meta::xsd_include{};
+    const std::string attr{node.attribute("schemaLocation").as_string()};
+    auto schema_include = tryParseUri(attr);
+    if (!schema_include)
+        throw std::runtime_error(fmt::format("schema with include uri \"{}\" not found", attr));
+    return meta::xsd_include{.id = getId(node), .schema = schema_include};
 }
 meta::xsd_import Parser::parseImport(const pugi::xml_node &node)
 {
-    return meta::xsd_import{};
+    const auto namespaceAttr = node.attribute("namespace");
+    const auto schemaLocAttr = node.attribute("schemaLocation");
+
+    SchemaPtr schema_import{nullptr};
+    if (schemaLocAttr)
+    {
+        const std::string import_schema_uri = schemaLocAttr.as_string();
+        schema_import = tryParseUri(import_schema_uri);
+        if (!schema_import)
+            throw std::runtime_error(fmt::format("schema with import uri \"{}\" not found", import_schema_uri));
+    }
+
+    return meta::xsd_import{.id = getId(node),
+                            .namespace_uri = namespaceAttr ? namespaceAttr.as_string() : "",
+                            .schema_location = schema_import};
 }
 meta::redefine Parser::parseRedefine(const pugi::xml_node &node)
 {
@@ -185,5 +234,30 @@ meta::redefine Parser::parseRedefine(const pugi::xml_node &node)
 meta::annotation Parser::parseAnnotation(const pugi::xml_node &node)
 {
     return meta::annotation{};
+}
+
+meta::OptionalId Parser::getId(const pugi::xml_node &node) const
+{
+    const auto attr = node.attribute("id");
+    if (!attr)
+        return meta::OptionalId{};
+    return meta::OptionalId(meta::datatypes::Id{attr.as_string()});
+}
+Parser::SchemaPtr Parser::getSchemaFromUri(const std::string_view uri) const
+{
+    const bool uri_is_url = is_url(uri);
+    const fs::path curr_p{uri_is_url ? "" : current_file_dir_ / fs::path{uri}};
+    const auto it =
+        std::find_if(state.schemas.begin(), state.schemas.end(), [this, uri, uri_is_url, &curr_p](const auto &s) {
+            const bool it_url = is_url(s->uri);
+            if (it_url != uri_is_url) // early out if we want to compare http uri with file uri
+                return false;
+            if (uri_is_url)
+                return s->uri == uri;
+
+            const fs::path s_p{working_dir_ / fs::path{s->uri}};
+            return fs::equivalent(s_p, curr_p);
+        });
+    return (it != state.schemas.end()) ? *it : nullptr;
 }
 } // namespace cppxsd::parser
