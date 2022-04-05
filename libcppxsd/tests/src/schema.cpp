@@ -1,5 +1,26 @@
+#include <filesystem>
 #include <catch2/catch_test_macros.hpp>
 #include <cppxsd/cppxsd.hpp>
+namespace fs = std::filesystem;
+
+// clang-format off
+template <typename T>
+concept Named = requires(T t)
+{
+    { T::kName } -> std::convertible_to<std::string_view>;
+};
+// clang-format on
+template <Named R>
+struct require_type
+{
+    void operator()(const R &x) const
+    {}
+    template <Named T>
+    void operator()(const T &) const
+    {
+        throw std::runtime_error(std::string{"illegal: "} + std::string{T::kName});
+    }
+};
 
 TEST_CASE("schema parser")
 {
@@ -28,5 +49,47 @@ TEST_CASE("schema parser")
         REQUIRE(schema_res->namespaces[2].uri == "https://www.w3schools.com/w3shoolsschema");
         REQUIRE(schema_res->namespaces[2].prefix.has_value());
         REQUIRE(schema_res->namespaces[2].prefix.value() == "wsc");
+    }
+
+    SECTION("customer schema")
+    {
+        const auto res = cppxsd::parse("schemas/customer.xsd");
+        REQUIRE(res.size() == 1);
+    }
+
+    SECTION("simple schema with include")
+    {
+        constexpr std::string_view schema = R"(
+            <schema>
+                <include schemaLocation="schemas/customer.xsd"/>
+            </schema>
+        )";
+        const auto res = cppxsd::parse(schema, kUri);
+        REQUIRE(res.size() == 2);
+        const auto include_schema = res[0];
+        REQUIRE(fs::path{include_schema->uri} == fs::path{"schemas/customer.xsd"});
+        const auto main_schema = res[1];
+        REQUIRE(fs::path{main_schema->uri} == fs::path{kUri});
+        REQUIRE(main_schema->imports.size() == 1);
+        
+        REQUIRE_NOTHROW(boost::apply_visitor(require_type<cppxsd::meta::xsd_include>{}, main_schema->imports[0]));
+    }
+
+    SECTION("simple schema with import")
+    {
+        constexpr std::string_view schema = R"(
+            <schema>
+                <xs:import namespace="http://www.example.com" schemaLocation="schemas/customer.xsd" />
+            </schema>
+        )";
+        const auto res = cppxsd::parse(schema, kUri);
+        REQUIRE(res.size() == 2);
+        const auto import_schema = res[0];
+        REQUIRE(fs::path{import_schema->uri} == fs::path{"schemas/customer.xsd"});
+        const auto main_schema = res[1];
+        REQUIRE(fs::path{main_schema->uri} == fs::path{kUri});
+        REQUIRE(main_schema->imports.size() == 1);
+
+        REQUIRE_NOTHROW(boost::apply_visitor(require_type<cppxsd::meta::xsd_import>{}, main_schema->imports[0]));
     }
 }

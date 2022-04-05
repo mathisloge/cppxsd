@@ -12,9 +12,13 @@ class Parser final
     using SchemaPtr = std::shared_ptr<meta::schema>;
 
   public:
-    Parser();
     explicit Parser(const fs::path &working_dir);
     ~Parser();
+    Parser(const Parser &other) = delete;
+    Parser(Parser &&other) noexcept = delete;
+    Parser &operator=(const Parser &other) = delete;
+    Parser &operator=(Parser &&other) noexcept = delete;
+
     void parse(const std::string &xsd_file);
     void parseFileContent(const std::string_view xml_content, const std::string_view uri);
 
@@ -38,7 +42,7 @@ class Parser final
     State state;
 
   private:
-    const fs::path &working_dir_;
+    const fs::path working_dir_;
     fs::path current_file_dir_;
 };
 

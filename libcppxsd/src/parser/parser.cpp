@@ -13,12 +13,10 @@ static bool is_url(const std::string_view uri)
 {
     return uri.starts_with("http://") || uri.starts_with("https://");
 }
-Parser::Parser()
-    : working_dir_{fs::current_path()}
-{}
 Parser::Parser(const fs::path &working_dir)
     : working_dir_{working_dir}
-{}
+{
+}
 Parser::~Parser()
 {}
 void Parser::parse(const std::string &xsd_file)
@@ -58,7 +56,7 @@ void Parser::parseFile(const fs::path &xsd_file)
         // todo check if path is same. might contain ../ etc.
         return;
     }
-    std::cout << "processing " << xsd_file << std::endl;
+
     state.current_file = xsd_file;
 
     pugi::xml_document doc;
@@ -68,7 +66,8 @@ void Parser::parseFile(const fs::path &xsd_file)
 
     const auto rel_path = fs::relative(xsd_file, working_dir_);
     current_file_dir_ = xsd_file.parent_path();
-    parseDocument(doc, rel_path.string());
+    const auto rel_file_path_str = rel_path.string();
+    parseDocument(doc, rel_file_path_str);
 
     state.already_parsed.emplace(file_path_str);
 }
@@ -229,12 +228,19 @@ Parser::SchemaPtr Parser::tryParseUri(const std::string_view uri)
     {
         const fs::path include_path{uri};
         if (include_path.is_relative())
-            parseFile(current_file_dir_ / include_path);
+        {
+            const auto fpath = working_dir_ / current_file_dir_ / include_path;
+            parseFile(fpath);
+            const auto fpath_str = fpath.string();
+            return getSchemaFromUri(fpath_str);
+        }
         else
             parseFile(include_path);
     }
+
     return getSchemaFromUri(uri);
 }
+
 meta::xsd_include Parser::parseInclude(const pugi::xml_node &node)
 {
     const std::string attr{node.attribute("schemaLocation").as_string()};
@@ -243,6 +249,7 @@ meta::xsd_include Parser::parseInclude(const pugi::xml_node &node)
         throw std::runtime_error(fmt::format("schema with include uri \"{}\" not found", attr));
     return meta::xsd_include{.id = getId(node), .schema = schema_include};
 }
+
 meta::xsd_import Parser::parseImport(const pugi::xml_node &node)
 {
     const auto namespaceAttr = node.attribute("namespace");
@@ -261,10 +268,12 @@ meta::xsd_import Parser::parseImport(const pugi::xml_node &node)
                             .namespace_uri = namespaceAttr ? namespaceAttr.as_string() : "",
                             .schema_location = schema_import};
 }
+
 meta::redefine Parser::parseRedefine(const pugi::xml_node &node)
 {
     return meta::redefine{};
 }
+
 meta::annotation Parser::parseAnnotation(const pugi::xml_node &node)
 {
     return meta::annotation{};
@@ -277,6 +286,7 @@ meta::OptionalId Parser::getId(const pugi::xml_node &node) const
         return meta::OptionalId{};
     return meta::OptionalId(meta::datatypes::Id{attr.as_string()});
 }
+
 Parser::SchemaPtr Parser::getSchemaFromUri(const std::string_view uri) const
 {
     const bool uri_is_url = is_url(uri);

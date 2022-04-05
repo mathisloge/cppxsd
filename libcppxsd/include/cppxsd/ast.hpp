@@ -2,10 +2,12 @@
 #include <chrono>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <boost/variant.hpp>
 namespace cppxsd::meta
 {
+using NameT = std::string_view;
 struct schema;
 struct element;
 struct complexType;
@@ -64,6 +66,8 @@ struct documentation
 //! https://www.w3schools.com/xml/el_annotation.asp
 struct annotation
 {
+    static constexpr NameT kName = "annotation";
+
     using Content = boost::variant<appInfo, documentation>;
 
     OptionalId id;
@@ -126,6 +130,8 @@ struct choice;
 //! https://www.w3schools.com/xml/el_sequence.asp
 struct sequence : XsdBaseElement
 {
+    static constexpr NameT kName = "sequence";
+
     using Content =
         boost::variant<element, group, boost::recursive_wrapper<choice>, boost::recursive_wrapper<sequence>, any>;
     std::vector<Content> content;
@@ -133,6 +139,8 @@ struct sequence : XsdBaseElement
 //! https://www.w3schools.com/xml/el_choice.asp
 struct choice : XsdBaseElement
 {
+    static constexpr NameT kName = "choice";
+
     using Content =
         boost::variant<element, group, boost::recursive_wrapper<choice>, boost::recursive_wrapper<sequence>, any>;
     std::vector<Content> content;
@@ -140,6 +148,8 @@ struct choice : XsdBaseElement
 //! https://www.w3schools.com/xml/el_restriction.asp
 struct restriction : XsdBaseElement
 {
+    static constexpr NameT kName = "restriction";
+
     GeneralAttributes attributes;
     // simpleType:
 
@@ -153,6 +163,8 @@ struct restriction : XsdBaseElement
 //! https://www.w3schools.com/xml/el_extension.asp
 struct extension : XsdBaseElement
 {
+    static constexpr NameT kName = "extension";
+
     using Content = boost::variant<group, all, choice, sequence>;
     Content content;
     GeneralAttributes attributes;
@@ -160,18 +172,24 @@ struct extension : XsdBaseElement
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-complexcontent
 struct complexContent : XsdBaseElement
 {
+    static constexpr NameT kName = "complexContent";
+
     using Content = boost::variant<restriction, extension>;
     Content content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-simplecontent
 struct simpleContent : XsdBaseElement
 {
+    static constexpr NameT kName = "simpleContent";
+
     using Content = boost::variant<restriction, extension>;
     Content content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-complextype-globale-definit
 struct complexType : XsdBaseElement
 {
+    static constexpr NameT kName = "complexType";
+
     using Content = boost::variant<simpleContent, complexContent, group, all, choice, sequence>;
     GeneralAttributes attributes;
     Content content;
@@ -179,22 +197,30 @@ struct complexType : XsdBaseElement
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-simpletype-globale-definiti
 struct simpleType : XsdBaseElement
 {
+    static constexpr NameT kName = "simpleType";
+
     using Content = boost::variant<restriction, boost::recursive_wrapper<list>, xsd_union>;
     Content content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-enumeration
 struct enumeration : XsdBaseElement
 {
+    static constexpr NameT kName = "enumeration";
+
     std::string value;
 };
 //! https://www.w3schools.com/xml/el_list.asp
 struct list : XsdBaseElement
 {
+    static constexpr NameT kName = "list";
+
     std::optional<simpleType> simple_type;
 };
 //! https://www.w3schools.com/xml/el_redefine.asp
 struct redefine : XsdBaseElement
 {
+    static constexpr NameT kName = "redefine";
+
     using Content = boost::variant<simpleType, complexType, group, attributeGroup>;
     std::vector<Content> content;
 };
@@ -202,6 +228,8 @@ struct redefine : XsdBaseElement
 //! https://www.w3schools.com/xml/el_include.asp
 struct xsd_include
 {
+    static constexpr NameT kName = "include";
+
     OptionalId id;
     std::weak_ptr<schema> schema; //! required
 };
@@ -209,6 +237,8 @@ struct xsd_include
 //! https://www.w3schools.com/xml/el_import.asp
 struct xsd_import
 {
+    static constexpr NameT kName = "import";
+
     OptionalId id;
     std::string namespace_uri;
     std::weak_ptr<schema> schema_location;
@@ -216,12 +246,16 @@ struct xsd_import
 
 struct xmlns_namespace
 {
+    static constexpr NameT kName = "namespace";
+
     std::optional<std::string> prefix;
     std::string uri;
 };
 //! https://www.w3schools.com/xml/el_schema.asp
 struct schema
 {
+    static constexpr NameT kName = "schema";
+
     std::string file_name;
     std::string uri;
     // attributes

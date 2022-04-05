@@ -7,25 +7,35 @@ namespace cppxsd
 {
 SchemaContainer parse(const fs::path &file)
 {
-    parser::Parser p{file};
-
-    for (auto const &dir_entry : fs::recursive_directory_iterator(file))
+    if (fs::is_directory(file))
     {
-        std::cout << dir_entry << '\n';
-        if (dir_entry.is_regular_file())
-            p.parse(dir_entry.path().string());
+        parser::Parser p{file};
+
+        for (auto const &dir_entry : fs::recursive_directory_iterator(file))
+        {
+            std::cout << dir_entry << '\n';
+            if (dir_entry.is_regular_file())
+                p.parse(dir_entry.path().string());
+        }
+
+        out::CppOutput o{};
+
+        for (const auto &e : p.state.schemas)
+            o(*e);
+        return p.state.schemas;
     }
-
-    out::CppOutput o{};
-
-    for (const auto &e : p.state.schemas)
-        o(*e);
-    return p.state.schemas;
+    else
+    {
+        const auto dir = file.is_relative() ? fs::current_path() : file.parent_path();
+        parser::Parser p{dir};
+        p.parse(file.string());
+        return p.state.schemas;
+    }
 }
 
 SchemaContainer LIBCPPXSD_EXPORT parse(const std::string_view xml_content, const std::string_view uri)
 {
-    parser::Parser p{};
+    parser::Parser p{fs::current_path()};
 
     p.parseFileContent(xml_content, uri);
 
