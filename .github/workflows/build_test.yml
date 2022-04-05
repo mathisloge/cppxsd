@@ -19,10 +19,10 @@ jobs:
         include:
           - os: windows-latest
             architecture: x64
-          - os: ubuntu-latest
-            mono: mono
-          - os: macos-latest
-            mono: mono
+          #- os: ubuntu-latest
+          #  mono: mono
+          #- os: macos-latest
+          #  mono: mono
 
     steps:
     - uses: ilammy/msvc-dev-cmd@v1
