@@ -1,5 +1,5 @@
 #pragma once
-#include "../meta/ast.hpp"
+#include <cppxsd/ast.hpp>
 namespace cppxsd::out
 {
 

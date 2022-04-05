@@ -13,11 +13,12 @@ static bool is_url(const std::string_view uri)
 {
     return uri.starts_with("http://") || uri.starts_with("https://");
 }
+Parser::Parser()
+    : working_dir_{fs::current_path()}
+{}
 Parser::Parser(const fs::path &working_dir)
     : working_dir_{working_dir}
-{
-    std::cout << "WORKING DIR " << working_dir << std::endl;
-}
+{}
 Parser::~Parser()
 {}
 void Parser::parse(const std::string &xsd_file)
@@ -31,6 +32,24 @@ void Parser::parse(const std::string &xsd_file)
         std::cout << "FAILED: " << ex.what() << std::endl;
     }
 }
+
+void Parser::parseFileContent(const std::string_view xml_content, const std::string_view uri)
+{
+    pugi::xml_document doc;
+    try
+    {
+        pugi::xml_parse_result result = doc.load_string(xml_content.data());
+        if (!result)
+            throw std::runtime_error("failed to parse");
+        parseDocument(doc, uri);
+        state.already_parsed.emplace(uri);
+    }
+    catch (const std::exception &ex)
+    {
+        std::cout << "FAILED: " << ex.what() << std::endl;
+    }
+}
+
 void Parser::parseFile(const fs::path &xsd_file)
 {
     const std::string file_path_str{xsd_file.string()};
@@ -54,7 +73,7 @@ void Parser::parseFile(const fs::path &xsd_file)
     state.already_parsed.emplace(file_path_str);
 }
 
-void Parser::parseDocument(const pugi::xml_document &doc, const std::string &uri)
+void Parser::parseDocument(const pugi::xml_document &doc, const std::string_view uri)
 {
     for (const auto &node : doc)
     {
@@ -73,9 +92,10 @@ static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
     std::copy(static_cast<char *>(contents), static_cast<char *>(contents) + realsize, std::back_inserter(mem));
     return realsize;
 }
-void Parser::parseUrl(const std::string &file_path)
+void Parser::parseUrl(const std::string_view file_path)
 {
-    if (state.already_parsed.contains(file_path))
+    const std::string file_path_str{file_path};
+    if (state.already_parsed.contains(file_path_str))
     {
         return;
     }
@@ -84,7 +104,7 @@ void Parser::parseUrl(const std::string &file_path)
     std::string data;
     CURL *curl = curl_easy_init();
 
-    curl_easy_setopt(curl, CURLOPT_URL, file_path.c_str());
+    curl_easy_setopt(curl, CURLOPT_URL, file_path_str.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&data);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcppxsd-agent/1.0");
@@ -115,7 +135,7 @@ constexpr bool contains_type(const std::vector<NodeType> &types, const NodeType 
     return std::any_of(std::begin(types), std::end(types), [curr_type](const auto type) { return type == curr_type; });
 }
 
-void Parser::parseSchema(const pugi::xml_node &node, const std::string &uri)
+void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
 {
     const auto parse_import = [this](const NodeType type,
                                      const pugi::xml_node &to_parse) -> meta::schema::ImportContent {
@@ -137,6 +157,20 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string &uri)
 
     auto schema = std::make_shared<meta::schema>();
     schema->uri = uri;
+
+    for (const auto &attr : node.attributes())
+    {
+        constexpr std::string_view kXmlns = "xmlns";
+        const std::string_view attr_name{attr.name()};
+        if (attr_name.starts_with("xmlns"))
+        {
+            const std::string namespace_uri = attr.as_string();
+            std::optional<std::string> namespace_prefix;
+            if (attr_name.size() > (kXmlns.size() + 1))
+                namespace_prefix = attr_name.substr(kXmlns.size() + 1);
+            schema->namespaces.emplace_back(meta::xmlns_namespace{namespace_prefix, namespace_uri});
+        }
+    }
 
     bool finished_import = false;
     for (const auto &child : node)
@@ -182,7 +216,7 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string &uri)
     state.schemas.emplace_back(std::move(schema));
 }
 
-Parser::SchemaPtr Parser::tryParseUri(const std::string &uri)
+Parser::SchemaPtr Parser::tryParseUri(const std::string_view uri)
 {
     auto import_schema = getSchemaFromUri(uri);
     if (import_schema)

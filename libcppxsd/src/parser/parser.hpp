@@ -12,16 +12,18 @@ class Parser final
     using SchemaPtr = std::shared_ptr<meta::schema>;
 
   public:
-    Parser(const fs::path &working_dir);
+    Parser();
+    explicit Parser(const fs::path &working_dir);
     ~Parser();
     void parse(const std::string &xsd_file);
+    void parseFileContent(const std::string_view xml_content, const std::string_view uri);
 
   private:
-    SchemaPtr tryParseUri(const std::string &uri);
+    SchemaPtr tryParseUri(const std::string_view uri);
     void parseFile(const fs::path &xsd_file);
-    void parseUrl(const std::string &file_path);
-    void parseDocument(const pugi::xml_document &doc, const std::string &uri);
-    void parseSchema(const pugi::xml_node &node, const std::string &uri);
+    void parseUrl(const std::string_view file_path);
+    void parseDocument(const pugi::xml_document &doc, const std::string_view uri);
+    void parseSchema(const pugi::xml_node &node, const std::string_view uri);
     void parseElement(const pugi::xml_node &node, const CbMap &callbacks);
 
     meta::xsd_include parseInclude(const pugi::xml_node &node);

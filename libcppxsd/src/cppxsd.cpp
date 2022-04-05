@@ -5,7 +5,7 @@
 #include "output/cpp/cpp_output.hpp"
 namespace cppxsd
 {
-void parse(const fs::path &file)
+SchemaContainer parse(const fs::path &file)
 {
     parser::Parser p{file};
 
@@ -20,5 +20,15 @@ void parse(const fs::path &file)
 
     for (const auto &e : p.state.schemas)
         o(*e);
+    return p.state.schemas;
+}
+
+SchemaContainer LIBCPPXSD_EXPORT parse(const std::string_view xml_content, const std::string_view uri)
+{
+    parser::Parser p{};
+
+    p.parseFileContent(xml_content, uri);
+
+    return p.state.schemas;
 }
 } // namespace cppxsd

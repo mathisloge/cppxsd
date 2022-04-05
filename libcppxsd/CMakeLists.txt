@@ -18,11 +18,18 @@ target_link_libraries(libcppxsd PRIVATE
     pugixml::pugixml
     CURL::libcurl
     fmt::fmt
+)
+target_link_libraries(libcppxsd PUBLIC
     Boost::boost
 )
+
 target_include_directories(libcppxsd PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<INSTALL_INTERFACE:include>
 )
 add_subdirectory(src)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

@@ -47,6 +47,13 @@ struct Id
 
 using OptionalId = std::optional<datatypes::Id>;
 
+//! https://www.w3schools.com/xml/el_appinfo.asp
+struct appInfo
+{
+    std::optional<std::string> source;
+    // any other string?
+};
+
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-documentation
 struct documentation
 {
@@ -57,7 +64,10 @@ struct documentation
 //! https://www.w3schools.com/xml/el_annotation.asp
 struct annotation
 {
-    std::vector<documentation> docs;
+    using Content = boost::variant<appInfo, documentation>;
+
+    OptionalId id;
+    std::vector<Content> childs;
 };
 using OptionalAnnotation = std::optional<annotation>;
 
@@ -69,8 +79,11 @@ struct XsdBaseElement
     OptionalAnnotation annotation;
 };
 //! https://www.w3schools.com/xml/el_anyattribute.asp
-struct anyAttribute : XsdBaseElement
-{};
+struct anyAttribute
+{
+    OptionalId id;
+    OptionalAnnotation annotation;
+};
 struct GeneralAttributes
 {
     using Attr = std::vector<boost::variant<attribute, boost::recursive_wrapper<attributeGroup>>>;
@@ -200,6 +213,12 @@ struct xsd_import
     std::string namespace_uri;
     std::weak_ptr<schema> schema_location;
 };
+
+struct xmlns_namespace
+{
+    std::optional<std::string> prefix;
+    std::string uri;
+};
 //! https://www.w3schools.com/xml/el_schema.asp
 struct schema
 {
@@ -207,6 +226,7 @@ struct schema
     std::string uri;
     // attributes
     OptionalId id;
+    std::vector<xmlns_namespace> namespaces;
     // elements
     using ImportContent = boost::variant<xsd_include, xsd_import, redefine, annotation>;
     std::vector<ImportContent> imports;
