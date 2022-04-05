@@ -126,7 +126,10 @@
             "description": "CI Configuration",
             "inherits": [
                 "defaults"
-            ]
+            ],
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "vcpkg/scripts/buildsystems/vcpkg.cmake"
+            }
         }
     ],
     "buildPresets": [
