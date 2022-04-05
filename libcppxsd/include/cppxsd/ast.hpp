@@ -177,15 +177,8 @@ struct restriction : XsdBaseElement
 {
     static constexpr NameT kName = "restriction";
 
+    std::string base;
     GeneralAttributes attributes;
-    // simpleType:
-
-    // simpleContent
-
-    // complexContent
-    using elComplexContent = boost::variant<group, all, choice, sequence>;
-    using elComp = boost::variant<elComplexContent>;
-    elComp content;
 };
 //! https://www.w3schools.com/xml/el_extension.asp
 struct extension : XsdBaseElement
@@ -217,6 +210,9 @@ struct complexType : XsdBaseElement
 {
     static constexpr NameT kName = "complexType";
 
+    // attributes
+    std::string name;
+    // childs
     using Content = boost::variant<simpleContent, complexContent, group, all, choice, sequence>;
     GeneralAttributes attributes;
     Content content;
@@ -291,6 +287,7 @@ struct schema
     // attributes
     OptionalId id;
     std::vector<xmlns_namespace> namespaces;
+    std::optional<std::reference_wrapper<xmlns_namespace>> targetNamespace;
     // elements
     using ImportContent = boost::variant<xsd_include, xsd_import, redefine, annotation>;
     std::vector<ImportContent> imports;

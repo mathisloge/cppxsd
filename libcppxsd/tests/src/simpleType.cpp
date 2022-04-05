@@ -19,6 +19,7 @@ TEST_CASE("simpleType")
             </schema>
         )";
         const auto res = cppxsd::parse(schema, kUri);
+        REQUIRE(res.size() == 1);
         const auto res_schema = res[0];
         REQUIRE(res_schema->contents.size() == 1);
         const auto &res_simpleType = res_schema->contents[0];

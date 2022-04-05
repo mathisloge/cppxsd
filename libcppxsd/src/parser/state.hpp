@@ -7,6 +7,7 @@ namespace cppxsd::parser
 {
 struct State
 {
+    std::shared_ptr<meta::schema> current_schema;
     std::unordered_set<std::string> already_parsed;
     fs::path current_file;
     std::vector<std::shared_ptr<meta::schema>> schemas;
