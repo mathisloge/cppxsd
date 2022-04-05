@@ -4,10 +4,10 @@
 #include "helpers.hpp"
 namespace fs = std::filesystem;
 
-TEST_CASE("simpleType")
+TEST_CASE("restriction")
 {
     constexpr std::string_view kUri = "test.xsd";
-    SECTION("simple simpleType")
+    SECTION("simple restriction")
     {
         constexpr std::string_view schema = R"(
             <schema xmlns="http://www.w3.org/2001/XMLSchema">

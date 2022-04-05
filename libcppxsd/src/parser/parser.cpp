@@ -10,10 +10,35 @@
 #include "keys.hpp"
 namespace cppxsd::parser
 {
-static bool is_url(const std::string_view uri)
+constexpr bool is_url(const std::string_view uri)
 {
     return uri.starts_with("http://") || uri.starts_with("https://");
 }
+constexpr bool contains_type(const std::vector<NodeType> &types, const NodeType curr_type)
+{
+    return std::any_of(std::begin(types), std::end(types), [curr_type](const auto type) { return type == curr_type; });
+}
+
+constexpr bool is_buildin_xsd_schema(const std::string_view schema_uri)
+{
+    if (!is_url(schema_uri))
+        return false;
+    return schema_uri.ends_with("w3.org/2001/XMLSchema");
+}
+
+struct IsValidQNameVisitor : public boost::static_visitor<bool>
+{
+    bool operator()(const BuildinType &t) const
+    {
+        return t != BuildinType::unknown;
+    }
+    template <typename T>
+    bool operator()(const T &) const
+    {
+        return true;
+    }
+};
+
 Parser::Parser(const fs::path &working_dir)
     : working_dir_{working_dir}
     , state{nullptr}
@@ -133,11 +158,6 @@ void Parser::parseUrl(const std::string_view file_path)
     curl_easy_cleanup(curl);
 }
 
-constexpr bool contains_type(const std::vector<NodeType> &types, const NodeType curr_type)
-{
-    return std::any_of(std::begin(types), std::end(types), [curr_type](const auto type) { return type == curr_type; });
-}
-
 void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
 {
     const auto parse_import = [this](const NodeType type,
@@ -183,20 +203,25 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
     state.current_schema = schema;
     schema->uri = uri;
 
+    // attribute: xmlns
     for (const auto &attr : node.attributes())
     {
         constexpr std::string_view kXmlns = "xmlns";
+
         const std::string_view attr_name{attr.name()};
         if (attr_name.starts_with("xmlns"))
         {
-            const std::string namespace_uri = attr.as_string();
             std::optional<std::string> namespace_prefix;
             if (attr_name.size() > (kXmlns.size() + 1))
                 namespace_prefix = attr_name.substr(kXmlns.size() + 1);
+
+            const std::string namespace_uri = attr.as_string();
             schema->namespaces.emplace_back(meta::xmlns_namespace{namespace_prefix, namespace_uri});
         }
     }
+    // END attribute: xmlns
 
+    // attribute: targetNamespace
     const auto targetNamespaceAttr = node.attribute("targetNamespace");
     if (targetNamespaceAttr)
     {
@@ -209,7 +234,9 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
             throw std::runtime_error("can't find a matching namespace for targetNamespace");
         schema->targetNamespace = std::ref(*it);
     }
+    // END attribute: targetNamespace
 
+    // handle childs
     bool finished_import = false;
     for (const auto &child : node)
     {
@@ -252,6 +279,7 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
             }
         }
     }
+    // end handle childs
 
     state.schemas.emplace_back(std::move(schema));
 }
@@ -359,12 +387,15 @@ meta::restriction Parser::parseRestriction(const pugi::xml_node &node)
 {
     meta::restriction restriction;
 
-    const auto base = node.attribute("base");
-    if (!base)
+    const auto baseAttr = node.attribute("base");
+    if (!baseAttr)
         throw ParseAttrException(kNodeId_restriction, "base", node);
-    restriction.base = base.as_string();
-    if (!resolveQName(restriction.base))
-        throw std::runtime_error("can't find qname of...");
+    const std::string_view base = baseAttr.as_string();
+
+    const auto base_qref = resolveQName(base);
+    const auto valid_qref = boost::apply_visitor(IsValidQNameVisitor(), base_qref.ref);
+    if (!valid_qref)
+        throw std::runtime_error(fmt::format("can't find qname of {}", base));
 
     return restriction;
 }
@@ -374,7 +405,7 @@ meta::OptionalId Parser::getId(const pugi::xml_node &node) const
     const auto attr = node.attribute("id");
     if (!attr)
         return meta::OptionalId{};
-    return meta::OptionalId(meta::datatypes::Id{attr.as_string()});
+    return meta::OptionalId(meta::Id{attr.as_string()});
 }
 
 Parser::SchemaPtr Parser::tryParseUri(const std::string_view uri)
@@ -421,7 +452,7 @@ Parser::SchemaPtr Parser::getSchemaFromUri(const std::string_view uri) const
     return (it != state.schemas.end()) ? *it : nullptr;
 }
 
-bool Parser::resolveQName(const std::string_view qname) const
+meta::qname_ref Parser::resolveQName(const std::string_view qname) const
 {
     return resolveQName(state.current_schema, qname);
 }
@@ -433,6 +464,11 @@ concept Named = requires(T a)
     { a.name } -> std::convertible_to<std::string>;
 };
 // clang-format on
+
+/**
+ * @brief checks if a visitable type has a given name
+ * 
+ */
 struct FindQName : public boost::static_visitor<bool>
 {
     const std::string_view ns;
@@ -453,6 +489,11 @@ struct FindQName : public boost::static_visitor<bool>
     }
 };
 
+/**
+ * @brief returns the schema of included or imported schemas. All others MAYBE visitable types, which don't export a
+ * schema are returning nullptr's
+ *
+ */
 struct GetSchemaOp : public boost::static_visitor<std::shared_ptr<meta::schema>>
 {
     using UriChecker = std::function<bool(const std::string_view)>;
@@ -478,8 +519,26 @@ struct GetSchemaOp : public boost::static_visitor<std::shared_ptr<meta::schema>>
     }
 };
 
-bool Parser::resolveQName(const SchemaPtr &schema, const std::string_view qname) const
+static meta::BuildinType resolveQNameXSD(const std::string_view qname)
 {
+    return value_name_to_type(qname);
+}
+
+/**
+ * @brief this visitor only allows transformations which are legal for @see meta::qname_ref::AllRefs .
+ *
+ */
+struct ConvertToQRef : boost::static_visitor<meta::qname_ref::AllRefs>
+{
+    template <typename T>
+    meta::qname_ref::AllRefs operator()(const T &) const
+    {
+        throw std::runtime_error("invalid base type");
+    }
+};
+meta::qname_ref Parser::resolveQName(const SchemaPtr &schema, const std::string_view qname) const
+{
+
     const auto ns = get_namespace_prefix(qname);
     // 1. check the current namespace
     // if the current targetNamespace matches, try to resolve the var name with the current schema.
@@ -492,35 +551,46 @@ bool Parser::resolveQName(const SchemaPtr &schema, const std::string_view qname)
             for (const auto &c : schema->contents)
             {
                 if (boost::apply_visitor(FindQName{ns}, c))
-                    return true;
+                {
+                    return meta::qname_ref{std::string{qname}, boost::apply_visitor(ConvertToQRef(), c)};
+                }
             }
         }
     }
 
     // 2. search in the other namespaces.
-    auto ns_it = schema->namespaces | std::views::filter([ns](const meta::xmlns_namespace &xmlns) {
-                     // when ns has no prefix, search for namespaces which don't have an prefix.
-                     // when ns has a prefix, search for all namespaces with such a prefix.
-                     return ns == kEmptyNamespace ? !xmlns.prefix.has_value() : xmlns.prefix == ns;
-                 }) |
-                 std::views::transform([](const meta::xmlns_namespace &xmlns) { return xmlns.uri; });
+    auto ns_view = schema->namespaces | std::views::filter([ns](const meta::xmlns_namespace &xmlns) {
+                       // when ns has no prefix, search for namespaces which don't have an prefix.
+                       // when ns has a prefix, search for all namespaces with such a prefix.
+                       return ns == kEmptyNamespace ? !xmlns.prefix.has_value() : xmlns.prefix == ns;
+                   });
 
-    for (const auto &inc : schema->imports)
+    // 3. try to resolve buildin types.
+    for (const auto &x : ns_view | std::views::filter([](const auto &ns) { return is_buildin_xsd_schema(ns.uri); }))
     {
-        auto schema_ptr =
-            boost::apply_visitor(GetSchemaOp([&](const std::string_view uri) {
-                                     return std::ranges::any_of(ns_it, [uri](const auto &s) { return s == uri; });
-                                 }),
-                                 inc);
-        if (schema_ptr && resolveQName(schema_ptr, qname))
-        {
-            return true;
-        }
+        const auto buildin_ref = resolveQNameXSD(qname);
+        if (buildin_ref != BuildinType::unknown)
+            return meta::qname_ref{std::string{qname}, meta::qname_ref::AllRefs{buildin_ref}};
     }
 
-    //! TODO: default namespace muss noch mit rein.
-
-    return false;
+    // search in imported or included schemas iff the searched qname isn't in the current schema or not a buildin type
+    auto uri_string_view =
+        ns_view | std::views::transform([](const meta::xmlns_namespace &xmlns) { return xmlns.uri; });
+    for (const auto &inc : schema->imports)
+    {
+        auto schema_ptr = boost::apply_visitor(GetSchemaOp([&](const std::string_view uri) {
+                                                   return std::ranges::any_of(
+                                                       uri_string_view, [uri](const auto &s) { return s == uri; });
+                                               }),
+                                               inc);
+        if (schema_ptr)
+        {
+            const auto schema_qname_ref = resolveQName(schema_ptr, qname);
+            if (boost::apply_visitor(IsValidQNameVisitor(), schema_qname_ref.ref))
+                return schema_qname_ref;
+        }
+    }
+    return meta::qname_ref{"", meta::qname_ref::AllRefs{BuildinType::unknown}};
 }
 
 } // namespace cppxsd::parser

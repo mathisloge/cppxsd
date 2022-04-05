@@ -24,8 +24,8 @@ namespace attributes
 {
 using lang = std::string;
 };
-namespace datatypes
-{
+
+// datatypes
 using StringType = std::string;
 using BoolType = bool;
 using ByteType = int8_t;
@@ -40,14 +40,37 @@ using FloatType = float;
 using DoubleType = double;
 using ByteArrayType = std::vector<uint8_t>;
 using TimeDurationType = std::chrono::seconds;
+// end datatypes
+
+enum class BuildinType
+{
+    xsd_string,
+    xsd_bool,
+    xsd_byte,
+    xsd_short,
+    xsd_int,
+    xsd_long,
+    xsd_unsigned_byte,
+    xsd_unsigned_short,
+    xsd_unsigned_int,
+    xsd_unsigned_long,
+    xsd_float,
+    xsd_double,
+    unknown
+};
 
 struct Id
 {
     std::string id;
 };
-}; // namespace datatypes
+using OptionalId = std::optional<Id>;
 
-using OptionalId = std::optional<datatypes::Id>;
+struct qname_ref
+{
+    std::string base;
+    using AllRefs = boost::variant<BuildinType>;
+    AllRefs ref;
+};
 
 //! https://www.w3schools.com/xml/el_appinfo.asp
 struct appInfo
@@ -177,7 +200,7 @@ struct restriction : XsdBaseElement
 {
     static constexpr NameT kName = "restriction";
 
-    std::string base;
+    qname_ref base;
     GeneralAttributes attributes;
 };
 //! https://www.w3schools.com/xml/el_extension.asp

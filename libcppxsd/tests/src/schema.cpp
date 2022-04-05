@@ -75,3 +75,10 @@ TEST_CASE("schema")
         REQUIRE_NOTHROW(boost::apply_visitor(require_type<cppxsd::meta::xsd_import>{}, main_schema->imports[0]));
     }
 }
+/*
+TEST_CASE("xsd schema")
+{
+    const auto res = cppxsd::parse("schemas/XMLSchema.xsd");
+    REQUIRE(res.size() == 1);
+}
+*/

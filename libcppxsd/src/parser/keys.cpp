@@ -27,4 +27,15 @@ NodeType node_name_to_type(const std::string_view str)
             return e.second;
     return NodeType::unknown;
 }
+
+BuildinType value_name_to_type(const std::string_view str)
+{
+    static const std::unordered_map<std::string_view, BuildinType> lookup{
+        {kBuildinTypeId_string, BuildinType::xsd_string}};
+
+    for (const auto &e : lookup)
+        if (is_node_type(e.first, str))
+            return e.second;
+    return BuildinType::unknown;
+}
 } // namespace cppxsd::parser

@@ -40,8 +40,8 @@ class Parser final
     meta::OptionalId getId(const pugi::xml_node &node) const;
     SchemaPtr getSchemaFromUri(const std::string_view path) const;
 
-    bool resolveQName(const std::string_view qname) const;
-    bool resolveQName(const SchemaPtr& schema, const std::string_view qname) const;
+    meta::qname_ref resolveQName(const std::string_view qname) const;
+    meta::qname_ref resolveQName(const SchemaPtr& schema, const std::string_view qname) const;
 
   public:
     State state;

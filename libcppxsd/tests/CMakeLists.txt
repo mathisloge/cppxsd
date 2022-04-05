@@ -1,6 +1,7 @@
 add_executable(libcppxsd-tests 
     src/schema.cpp
     src/simpleType.cpp
+    src/restriction.cpp
 )
 target_link_libraries(libcppxsd-tests 
     PRIVATE 

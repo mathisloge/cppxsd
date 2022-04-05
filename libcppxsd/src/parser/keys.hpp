@@ -1,5 +1,6 @@
 #pragma once
 #include <string_view>
+#include <cppxsd/ast.hpp>
 namespace cppxsd::parser
 {
 inline constexpr std::string_view kNodeId_schema{"schema"};
@@ -96,5 +97,8 @@ enum class NodeType
     xsd_union,
     unknown
 };
+using BuildinType = meta::BuildinType;
+
 NodeType node_name_to_type(const std::string_view str);
+BuildinType value_name_to_type(const std::string_view str);
 } // namespace cppxsd::parser
