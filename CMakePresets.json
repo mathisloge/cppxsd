@@ -120,6 +120,13 @@
                 "release-build",
                 "defaults"
             ]
+        },
+        {
+            "name": "ci",
+            "description": "CI Configuration",
+            "inherits": [
+                "defaults"
+            ]
         }
     ],
     "buildPresets": [
@@ -130,7 +137,19 @@
         {
             "name": "windows-64-release",
             "configurePreset": "windows-64-default-release"
+        },
+        {
+            "name": "ci",
+            "configurePreset": "ci"
         }
     ],
-    "testPresets": []
+    "testPresets": [
+        {
+            "name": "ci",
+            "configurePreset": "ci",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ]
 }
