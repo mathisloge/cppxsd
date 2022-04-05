@@ -1,0 +1,67 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+env:
+  VCPKG_SHA: 01d6f6ff1e5332b926099f0c23bda996940ad4e8
+  NUGET_REGISTRY: https://nuget.pkg.github.com/mathisloge/index.json
+  NUGET_USERNAME: mathisloge
+  VCPKG_BINARY_SOURCES: "clear;nuget,GitHub,readwrite"
+  VCPKG_NUGET_REPOSITORY: https://github.com/mathisloge/vcpkg-nuget.git
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            architecture: x64
+          - os: ubuntu-latest
+            mono: mono
+          - os: macos-latest
+            mono: mono
+
+    steps:
+    - uses: ilammy/msvc-dev-cmd@v1
+    - uses: lukka/get-cmake@latest
+    - uses: actions/checkout@v3
+    - name: checkout vcpkg
+      uses: actions/checkout@v3
+      with:
+        repository: "microsoft/vcpkg"
+        ref: ${{ env.VCPKG_SHA }}
+        path: vcpkg
+
+    - name: "Setup vcpkg"
+      shell: bash
+      run: ./vcpkg/bootstrap-vcpkg.sh
+    
+    - name: "Setup NuGet Credentials"
+      shell: "bash"
+      run: >
+          ${{ matrix.mono }} `./vcpkg/vcpkg fetch nuget | tail -n 1`
+          sources add
+          -source "${{ env.NUGET_REGISTRY }}"
+          -storepasswordincleartext
+          -name "GitHub"
+          -username "${{ env.NUGET_USERNAME }}"
+          -password "${{ secrets.NUGET_REGISTRY_PAT }}"
+          
+    - name: "Setup NuGet apikey"
+      shell: "bash"
+      run: >
+          ${{ matrix.mono }} `./vcpkg/vcpkg fetch nuget | tail -n 1`
+          setapikey "${{ secrets.NUGET_REGISTRY_PAT }}" -Source "${{ env.NUGET_REGISTRY }}"
+      
+    - name: Configure CMake
+      run: cmake -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake --preset ci
+
+    - name: Build
+      run: cmake --build --preset ci
+
+    - name: Test
+      run: ctest --preset ci
+      
