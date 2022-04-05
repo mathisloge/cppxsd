@@ -15,8 +15,7 @@ static bool is_url(const std::string_view uri)
 }
 Parser::Parser(const fs::path &working_dir)
     : working_dir_{working_dir}
-{
-}
+{}
 Parser::~Parser()
 {}
 void Parser::parse(const std::string &xsd_file)
@@ -154,6 +153,27 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
         }
     };
 
+    const auto parse_content = [this](const NodeType type, const pugi::xml_node &to_parse) -> meta::schema::Content {
+        switch (type)
+        {
+        case NodeType::simpleType:
+            return parseSimpleType(to_parse, true);
+        case NodeType::element:
+            return parseElement(to_parse);
+
+        default:
+            throw ParseException{kNodeId_schema,
+                                 {kNodeId_simpleType,
+                                  kNodeId_complexType,
+                                  kNodeId_group,
+                                  kNodeId_attributeGroup,
+                                  kNodeId_element,
+                                  kNodeId_attribute,
+                                  kNodeId_notation},
+                                 to_parse};
+        }
+    };
+
     auto schema = std::make_shared<meta::schema>();
     schema->uri = uri;
 
@@ -191,7 +211,9 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
                                NodeType::attribute,
                                NodeType::notation},
                               child_type))
-            {}
+            {
+                schema->contents.emplace_back(parse_content(child_type, child));
+            }
             else if (child_type == NodeType::annotation)
             {
                 schema->annotations.emplace_back(parseAnnotation(child));
@@ -213,32 +235,6 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
     }
 
     state.schemas.emplace_back(std::move(schema));
-}
-
-Parser::SchemaPtr Parser::tryParseUri(const std::string_view uri)
-{
-    auto import_schema = getSchemaFromUri(uri);
-    if (import_schema)
-        return import_schema;
-    if (is_url(uri))
-    {
-        parseUrl(uri);
-    }
-    else
-    {
-        const fs::path include_path{uri};
-        if (include_path.is_relative())
-        {
-            const auto fpath = working_dir_ / current_file_dir_ / include_path;
-            parseFile(fpath);
-            const auto fpath_str = fpath.string();
-            return getSchemaFromUri(fpath_str);
-        }
-        else
-            parseFile(include_path);
-    }
-
-    return getSchemaFromUri(uri);
 }
 
 meta::xsd_include Parser::parseInclude(const pugi::xml_node &node)
@@ -279,12 +275,99 @@ meta::annotation Parser::parseAnnotation(const pugi::xml_node &node)
     return meta::annotation{};
 }
 
+meta::element Parser::parseElement(const pugi::xml_node &node)
+{
+    return meta::element{};
+}
+meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema)
+{
+    const auto parse_content = [this](const NodeType type,
+                                      const pugi::xml_node &to_parse) -> meta::simpleType::Content {
+        switch (type)
+        {
+        case NodeType::restriction:
+            return meta::restriction{};
+        case NodeType::list:
+            return meta::list{};
+        case NodeType::xsd_union:
+            return meta::xsd_union{};
+
+        default:
+            throw ParseException{kNodeId_simpleType, {kNodeId_restriction, kNodeId_list, kNodeId_union}, to_parse};
+        }
+    };
+
+    meta::simpleType simple_type;
+    bool found_content = false;
+
+    const auto name = node.attribute("name");
+    if (!invoked_from_schema && name)
+        throw std::runtime_error("when not invoked from schema, name isn't allowed");
+    else if (invoked_from_schema && !name)
+        throw std::runtime_error("name attribute is required");
+    else
+        simple_type.name = name.as_string();
+
+    for (const auto &child : node)
+    {
+        const auto child_type = node_name_to_type(child.name());
+
+        if (child_type == NodeType::annotation)
+        {
+            if (simple_type.annotation.has_value())
+                throw std::runtime_error("annotation already exists");
+
+            simple_type.annotation = parseAnnotation(child);
+        }
+        else if (contains_type({NodeType::restriction, NodeType::list, NodeType::xsd_union}, child_type))
+        {
+            if (found_content)
+                throw std::runtime_error("content already exists");
+            found_content = true;
+            simple_type.content = parse_content(child_type, child);
+        }
+        else
+        {
+            throw ParseException{
+                kNodeId_simpleType, {kNodeId_annotation, kNodeId_restriction, kNodeId_list, kNodeId_union}, child};
+        }
+    }
+
+    return simple_type;
+}
+
 meta::OptionalId Parser::getId(const pugi::xml_node &node) const
 {
     const auto attr = node.attribute("id");
     if (!attr)
         return meta::OptionalId{};
     return meta::OptionalId(meta::datatypes::Id{attr.as_string()});
+}
+
+Parser::SchemaPtr Parser::tryParseUri(const std::string_view uri)
+{
+    auto import_schema = getSchemaFromUri(uri);
+    if (import_schema)
+        return import_schema;
+    if (is_url(uri))
+    {
+        parseUrl(uri);
+    }
+    else
+    {
+        const fs::path include_path{uri};
+        if (include_path.is_relative())
+        {
+            const auto fpath = working_dir_ / current_file_dir_ / include_path;
+            parseFile(fpath);
+            const auto fpath_str = fpath.string();
+            return getSchemaFromUri(fpath_str);
+        }
+        else
+            parseFile(include_path);
+    }
+
+    return getSchemaFromUri(uri);
 }
 
 Parser::SchemaPtr Parser::getSchemaFromUri(const std::string_view uri) const

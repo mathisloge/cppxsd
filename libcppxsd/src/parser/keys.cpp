@@ -18,7 +18,10 @@ NodeType node_name_to_type(const std::string_view str)
         {kNodeId_attributeGroup, NodeType::attributeGroup},
         {kNodeId_element, NodeType::element},
         {kNodeId_notation, NodeType::notation},
-        {kNodeId_annotation, NodeType::annotation}};
+        {kNodeId_annotation, NodeType::annotation},
+        {kNodeId_restriction, NodeType::restriction},
+        {kNodeId_list, NodeType::list},
+        {kNodeId_union, NodeType::xsd_union}};
     for (const auto &e : lookup)
         if (is_node_type(e.first, str))
             return e.second;

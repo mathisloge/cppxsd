@@ -52,6 +52,8 @@ using OptionalId = std::optional<datatypes::Id>;
 //! https://www.w3schools.com/xml/el_appinfo.asp
 struct appInfo
 {
+    static constexpr NameT kName = "appInfo";
+
     std::optional<std::string> source;
     // any other string?
 };
@@ -59,6 +61,8 @@ struct appInfo
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-documentation
 struct documentation
 {
+    static constexpr NameT kName = "documentation";
+
     std::string contents;
     attributes::lang language;
 };
@@ -77,19 +81,29 @@ using OptionalAnnotation = std::optional<annotation>;
 
 //! https://www.w3schools.com/xml/el_notation.asp
 struct notation
-{};
+{
+    static constexpr NameT kName = "notation";
+};
 struct XsdBaseElement
 {
+    // attributes
+    OptionalId id;
+
+    // content
     OptionalAnnotation annotation;
 };
 //! https://www.w3schools.com/xml/el_anyattribute.asp
 struct anyAttribute
 {
+    static constexpr NameT kName = "anyAttribute";
+
     OptionalId id;
     OptionalAnnotation annotation;
 };
 struct GeneralAttributes
 {
+    static constexpr NameT kName = "generalAttributes";
+
     using Attr = std::vector<boost::variant<attribute, boost::recursive_wrapper<attributeGroup>>>;
     Attr attributes;
     std::optional<anyAttribute> any_attributes;
@@ -97,34 +111,47 @@ struct GeneralAttributes
 //! https://www.w3schools.com/xml/el_attributegroup.asp
 struct attributeGroup : XsdBaseElement
 {
+    static constexpr NameT kName = "attributeGroup";
+
     GeneralAttributes attributes;
 };
 //! https://www.w3schools.com/xml/el_attribute.asp
 struct attribute : XsdBaseElement
 {
+    static constexpr NameT kName = "attribute";
+
     std::optional<boost::recursive_wrapper<simpleType>> content;
 };
 
 struct xsd_union
-{};
+{
+    static constexpr NameT kName = "union";
+};
 
 //! https://www.w3schools.com/xml/el_element.asp
 struct element : XsdBaseElement
 {
+    static constexpr NameT kName = "element";
+
     using Content = boost::variant<boost::recursive_wrapper<simpleType>, boost::recursive_wrapper<complexType>>;
     Content content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-all-ausserhalb-gruppe
 struct all : XsdBaseElement
 {
+    static constexpr NameT kName = "all";
     std::vector<element> content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-any
 struct any : XsdBaseElement
-{};
+{
+    static constexpr NameT kName = "any";
+};
 
 struct group
-{};
+{
+    static constexpr NameT kName = "group";
+};
 struct sequence;
 struct choice;
 //! https://www.w3schools.com/xml/el_sequence.asp
@@ -194,11 +221,14 @@ struct complexType : XsdBaseElement
     GeneralAttributes attributes;
     Content content;
 };
-//! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-simpletype-globale-definiti
+//! https://www.w3schools.com/xml/el_simpletype.asp
 struct simpleType : XsdBaseElement
 {
     static constexpr NameT kName = "simpleType";
+    // attributes
+    std::string name;
 
+    // childs
     using Content = boost::variant<restriction, boost::recursive_wrapper<list>, xsd_union>;
     Content content;
 };

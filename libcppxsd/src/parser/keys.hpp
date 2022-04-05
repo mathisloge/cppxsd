@@ -91,6 +91,9 @@ enum class NodeType
     element,
     notation,
     annotation,
+    restriction,
+    list,
+    xsd_union,
     unknown
 };
 NodeType node_name_to_type(const std::string_view str);

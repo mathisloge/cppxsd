@@ -1,28 +1,10 @@
 #include <filesystem>
 #include <catch2/catch_test_macros.hpp>
 #include <cppxsd/cppxsd.hpp>
+#include "helpers.hpp"
 namespace fs = std::filesystem;
 
-// clang-format off
-template <typename T>
-concept Named = requires(T t)
-{
-    { T::kName } -> std::convertible_to<std::string_view>;
-};
-// clang-format on
-template <Named R>
-struct require_type
-{
-    void operator()(const R &x) const
-    {}
-    template <Named T>
-    void operator()(const T &) const
-    {
-        throw std::runtime_error(std::string{"illegal: "} + std::string{T::kName});
-    }
-};
-
-TEST_CASE("schema parser")
+TEST_CASE("schema")
 {
     constexpr std::string_view kUri = "test.xsd";
     SECTION("simple schema")
@@ -71,7 +53,7 @@ TEST_CASE("schema parser")
         const auto main_schema = res[1];
         REQUIRE(fs::path{main_schema->uri} == fs::path{kUri});
         REQUIRE(main_schema->imports.size() == 1);
-        
+
         REQUIRE_NOTHROW(boost::apply_visitor(require_type<cppxsd::meta::xsd_include>{}, main_schema->imports[0]));
     }
 

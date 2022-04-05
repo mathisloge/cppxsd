@@ -28,12 +28,13 @@ class Parser final
     void parseUrl(const std::string_view file_path);
     void parseDocument(const pugi::xml_document &doc, const std::string_view uri);
     void parseSchema(const pugi::xml_node &node, const std::string_view uri);
-    void parseElement(const pugi::xml_node &node, const CbMap &callbacks);
 
     meta::xsd_include parseInclude(const pugi::xml_node &node);
     meta::xsd_import parseImport(const pugi::xml_node &node);
     meta::redefine parseRedefine(const pugi::xml_node &node);
     meta::annotation parseAnnotation(const pugi::xml_node &node);
+    meta::element parseElement(const pugi::xml_node &node);
+    meta::simpleType parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema);
 
     meta::OptionalId getId(const pugi::xml_node &node) const;
     SchemaPtr getSchemaFromUri(const std::string_view path) const;
