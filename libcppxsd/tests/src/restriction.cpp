@@ -31,8 +31,8 @@ TEST_CASE("restriction")
         const auto res_schema = res[0];
         REQUIRE(res_schema->contents.size() == 1);
         const auto &res_simpleType = res_schema->contents[0];
-
-        REQUIRE_NOTHROW(boost::apply_visitor(
+        REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::ptr<m::simpleType>>{}, res_simpleType));
+        boost::apply_visitor(
             require_type<m::ptr<m::simpleType>>{[](const m::ptr<m::simpleType> &simpleType) {
                 REQUIRE(simpleType->name == "LastNameType");
                 REQUIRE_FALSE(simpleType->annotation.has_value());
@@ -48,7 +48,7 @@ TEST_CASE("restriction")
 
                 REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::restriction>{}, simpleType->content));
             }},
-            res_simpleType));
+            res_simpleType);
     }
 
     SECTION("restriction from non buildin type")
