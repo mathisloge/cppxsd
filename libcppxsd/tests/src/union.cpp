@@ -1,5 +1,4 @@
 #include <filesystem>
-#include <iostream>
 #include <catch2/catch_test_macros.hpp>
 #include <cppxsd/cppxsd.hpp>
 #include <cppxsd/resolve_qname.hpp>
@@ -13,7 +12,6 @@ template <typename ReqT>
 void validate_qname(const std::shared_ptr<m::schema> &s, const std::string_view qname_str)
 {
     const auto qname = cppxsd::resolveQName(s, qname_str);
-    std::cout << "XX " << qname_str << std::endl;
     REQUIRE_NOTHROW(boost::apply_visitor(require_type<ReqT>{}, qname.ref));
 };
 
