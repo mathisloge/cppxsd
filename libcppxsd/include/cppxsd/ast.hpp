@@ -22,6 +22,8 @@ struct redefine;
 struct attributeGroup;
 struct attribute;
 struct anyAttribute;
+struct sequence;
+struct choice;
 namespace attributes
 {
 using lang = std::string;
@@ -128,6 +130,7 @@ struct notation
 {
     static constexpr NameT kName = "notation";
 };
+
 struct XsdBaseElement
 {
     // attributes
@@ -145,6 +148,7 @@ struct anyAttribute
     OptionalId id;
     OptionalAnnotation annotation;
 };
+
 struct GeneralAttributes
 {
     static constexpr NameT kName = "generalAttributes";
@@ -153,6 +157,7 @@ struct GeneralAttributes
     Attr attributes;
     std::optional<anyAttribute> any_attributes;
 };
+
 //! https://www.w3schools.com/xml/el_attributegroup.asp
 struct attributeGroup : XsdBaseElement
 {
@@ -160,6 +165,7 @@ struct attributeGroup : XsdBaseElement
 
     GeneralAttributes attributes;
 };
+
 //! https://www.w3schools.com/xml/el_attribute.asp
 struct attribute : XsdBaseElement
 {
@@ -197,12 +203,14 @@ struct element : XsdBaseElement
     using Content = boost::variant<boost::recursive_wrapper<simpleType>, boost::recursive_wrapper<complexType>>;
     Content content;
 };
+
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-all-ausserhalb-gruppe
 struct all : XsdBaseElement
 {
     static constexpr NameT kName = "all";
     std::vector<element> content;
 };
+
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-any
 struct any : XsdBaseElement
 {
@@ -213,8 +221,7 @@ struct group
 {
     static constexpr NameT kName = "group";
 };
-struct sequence;
-struct choice;
+
 //! https://www.w3schools.com/xml/el_sequence.asp
 struct sequence : XsdBaseElement
 {
@@ -224,6 +231,7 @@ struct sequence : XsdBaseElement
         boost::variant<element, group, boost::recursive_wrapper<choice>, boost::recursive_wrapper<sequence>, any>;
     std::vector<Content> content;
 };
+
 //! https://www.w3schools.com/xml/el_choice.asp
 struct choice : XsdBaseElement
 {
@@ -233,6 +241,7 @@ struct choice : XsdBaseElement
         boost::variant<element, group, boost::recursive_wrapper<choice>, boost::recursive_wrapper<sequence>, any>;
     std::vector<Content> content;
 };
+
 //! https://www.w3schools.com/xml/el_extension.asp
 struct extension : XsdBaseElement
 {
@@ -242,6 +251,7 @@ struct extension : XsdBaseElement
     Content content;
     GeneralAttributes attributes;
 };
+
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-complexcontent
 struct complexContent : XsdBaseElement
 {
@@ -250,7 +260,8 @@ struct complexContent : XsdBaseElement
     using Content = boost::variant<restriction, extension>;
     Content content;
 };
-//! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-simplecontent
+
+//! https://www.w3schools.com/xml/el_simplecontent.asp
 struct simpleContent : XsdBaseElement
 {
     static constexpr NameT kName = "simpleContent";
@@ -258,6 +269,7 @@ struct simpleContent : XsdBaseElement
     using Content = boost::variant<restriction, extension>;
     Content content;
 };
+
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-complextype-globale-definit
 struct complexType : XsdBaseElement
 {
@@ -270,6 +282,7 @@ struct complexType : XsdBaseElement
     GeneralAttributes attributes;
     Content content;
 };
+
 //! https://www.w3schools.com/xml/el_simpletype.asp
 struct simpleType : XsdBaseElement
 {
@@ -281,6 +294,7 @@ struct simpleType : XsdBaseElement
     using Content = boost::variant<restriction, boost::recursive_wrapper<list>, xsd_union>;
     Content content;
 };
+
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-enumeration
 struct enumeration : XsdBaseElement
 {
@@ -288,6 +302,7 @@ struct enumeration : XsdBaseElement
 
     std::string value;
 };
+
 //! https://www.w3schools.com/xml/el_list.asp
 struct list : XsdBaseElement
 {
@@ -295,6 +310,7 @@ struct list : XsdBaseElement
 
     boost::variant<QName, simpleType> baseType;
 };
+
 //! https://www.w3schools.com/xml/el_redefine.asp
 struct redefine : XsdBaseElement
 {
@@ -335,6 +351,7 @@ struct xmlns_namespace
     std::optional<std::string> prefix;
     std::string uri;
 };
+
 //! https://www.w3schools.com/xml/el_schema.asp
 struct schema
 {

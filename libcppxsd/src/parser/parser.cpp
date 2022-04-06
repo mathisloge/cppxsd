@@ -358,7 +358,7 @@ meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool 
 
 meta::restriction Parser::parseRestriction(const pugi::xml_node &node) const
 {
-    meta::restriction restriction;
+    meta::restriction restriction{};
 
     const auto baseAttr = node.attribute("base");
     if (!baseAttr)
@@ -383,7 +383,7 @@ meta::list Parser::parseList(const pugi::xml_node &node) const
     else if (!itemTypeAttr && !nodeSimpleType)
         throw std::runtime_error("either itemType Attribute or simpleType have to be present");
 
-    meta::list item;
+    meta::list item{};
     item.annotation = getAnnotation(node);
     if (itemTypeAttr)
     {
@@ -402,7 +402,7 @@ meta::list Parser::parseList(const pugi::xml_node &node) const
 
 meta::xsd_union Parser::parseUnion(const pugi::xml_node &node) const
 {
-    meta::xsd_union item;
+    meta::xsd_union item{};
     item.id = getId(node);
     item.annotation = getAnnotation(node);
 
@@ -417,6 +417,39 @@ meta::xsd_union Parser::parseUnion(const pugi::xml_node &node) const
             throw std::runtime_error(fmt::format("not a valid qname: {}", qname_str));
         item.memberTypes.emplace_back(meta::QName{std::string{qname_str}});
     }
+    return item;
+}
+
+meta::simpleContent Parser::parseSimpleContent(const pugi::xml_node &node) const
+{
+    meta::simpleContent item{};
+    item.id = getId(node);
+    item.annotation = getAnnotation(node);
+
+    const auto nodeRestriction = node.find_child(
+        [](const pugi::xml_node &node) { return node_name_to_type(node.name()) == NodeType::restriction; });
+    const auto nodeExtension = node.find_child(
+        [](const pugi::xml_node &node) { return node_name_to_type(node.name()) == NodeType::extension; });
+    if (nodeRestriction)
+        item.content = parseRestriction(nodeRestriction);
+    else if (nodeExtension)
+        item.content = parseExtension(nodeExtension);
+    else
+        throw std::runtime_error("missing restriction or extension");
+
+    return item;
+}
+
+meta::extension Parser::parseExtension(const pugi::xml_node &node) const
+{
+    meta::extension item{};
+    item.id = getId(node);
+    item.annotation = getAnnotation(node);
+
+    item.content = [](const pugi::xml_node &node) -> meta::extension::Content {
+        // TODO
+    }(node);
+
     return item;
 }
 
@@ -475,7 +508,7 @@ Parser::SchemaPtr Parser::getSchemaFromUri(const std::string_view uri) const
             if (uri_is_url)
                 return s->uri == uri;
 
-            const fs::path s_p{working_dir_ / fs::path{s->uri}};
+            const fs::path s_p{working_dir_ / s->uri};
             return fs::equivalent(s_p, curr_p);
         });
     return (it != state.schemas.end()) ? *it : nullptr;

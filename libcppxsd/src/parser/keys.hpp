@@ -95,6 +95,7 @@ enum class NodeType
     notation,
     annotation,
     restriction,
+    extension,
     list,
     xsd_union,
     unknown

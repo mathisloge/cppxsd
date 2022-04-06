@@ -38,6 +38,8 @@ class Parser final
     meta::restriction parseRestriction(const pugi::xml_node &node) const;
     meta::list parseList(const pugi::xml_node& node) const;
     meta::xsd_union parseUnion(const pugi::xml_node& node) const;
+    meta::simpleContent parseSimpleContent(const pugi::xml_node& node) const;
+    meta::extension parseExtension(const pugi::xml_node& node) const;
 
     meta::OptionalAnnotation getAnnotation(const pugi::xml_node &node) const;
     meta::OptionalId getId(const pugi::xml_node &node) const;

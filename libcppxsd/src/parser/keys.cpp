@@ -21,7 +21,8 @@ NodeType node_name_to_type(const std::string_view str)
         {kNodeId_annotation, NodeType::annotation},
         {kNodeId_restriction, NodeType::restriction},
         {kNodeId_list, NodeType::list},
-        {kNodeId_union, NodeType::xsd_union}};
+        {kNodeId_union, NodeType::xsd_union},
+        {kNodeId_extension, NodeType::extension}};
     for (const auto &e : lookup)
         if (is_node_type(e.first, str))
             return e.second;
@@ -49,7 +50,7 @@ BuildinType value_name_to_type(const std::string_view str)
         {kBuildinTypeId_float, BuildinType::xsd_float},
         {kBuildinTypeId_decimal, BuildinType::xsd_decimal},
         {kBuildinTypeId_double, BuildinType::xsd_double},
-        {kBuildinTypeId_anyUri , BuildinType::xsd_anyUri },
+        {kBuildinTypeId_anyUri, BuildinType::xsd_anyUri},
         {kBuildinTypeId_integer, BuildinType::xsd_integer},
         {kBuildinTypeId_nonPositiveInteger, BuildinType::xsd_nonPositiveInteger},
         {kBuildinTypeId_negativeInteger, BuildinType::xsd_negativeInteger},
