@@ -7,10 +7,6 @@
 namespace fs = std::filesystem;
 namespace m = cppxsd::meta;
 
-static void test(const m::simpleType &s)
-{
-    std::cout << "TEST" << s.name << std::endl;
-}
 //! https://www.w3schools.com/xml/el_restriction.asp
 TEST_CASE("restriction")
 {
@@ -37,16 +33,17 @@ TEST_CASE("restriction")
             require_type<m::simpleType>{[&](const m::simpleType &simpleType) {
                 REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::restriction>{}, simpleType.content));
 
-                boost::apply_visitor(
-                    require_type<m::restriction>{[&](const m::restriction &restr) {
-                        REQUIRE(restr.base.name == "string");
-                        const auto qname = cppxsd::resolveQName(res_schema, restr.base.name);
-                        REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::BuildinType>{[](const m::BuildinType t) {
-                                                                 REQUIRE(t == m::BuildinType::xsd_string);
-                                                             }},
-                                                             qname.ref));
-                    }},
-                    simpleType.content);
+                boost::apply_visitor(require_type<m::restriction>{[&](const m::restriction &restr) {
+                                         REQUIRE(restr.base.name == "string");
+                                         const auto qname = cppxsd::resolveQName(res_schema, restr.base.name);
+                                         REQUIRE_NOTHROW(
+                                             boost::apply_visitor(require_type<m::BuildinType>{}, qname.ref));
+                                         boost::apply_visitor(require_type<m::BuildinType>{[](const m::BuildinType t) {
+                                                                  REQUIRE(t == m::BuildinType::xsd_string);
+                                                              }},
+                                                              qname.ref);
+                                     }},
+                                     simpleType.content);
             }},
             res_simpleType);
     }
@@ -79,16 +76,19 @@ TEST_CASE("restriction")
                 REQUIRE(simpleType.name == "LastNameType");
                 REQUIRE_FALSE(simpleType.annotation.has_value());
                 REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::restriction>{}, simpleType.content));
-                boost::apply_visitor(
-                    require_type<m::restriction>{[&](const m::restriction &restr) {
-                        REQUIRE(restr.base.name == "myns:NameType");
-                        const auto qname = cppxsd::resolveQName(res_schema, restr.base.name);
-                        REQUIRE_NOTHROW(boost::apply_visitor(
-                            require_type<std::reference_wrapper<const m::simpleType>>{
-                                [](const std::reference_wrapper<const m::simpleType> &t) { test(t); }},
-                            qname.ref));
-                    }},
-                    simpleType.content);
+                boost::apply_visitor(require_type<m::restriction>{[&](const m::restriction &restr) {
+                                         REQUIRE(restr.base.name == "myns:NameType");
+                                         const auto qname = cppxsd::resolveQName(res_schema, restr.base.name);
+                                         REQUIRE_NOTHROW(boost::apply_visitor(
+                                             require_type<std::reference_wrapper<const m::simpleType>>{}, qname.ref));
+                                         boost::apply_visitor(
+                                             require_type<std::reference_wrapper<const m::simpleType>>{
+                                                 [](const std::reference_wrapper<const m::simpleType> &t) {
+                                                     REQUIRE(t.get().name == "NameType");
+                                                 }},
+                                             qname.ref);
+                                     }},
+                                     simpleType.content);
             }},
             last_name);
     }
