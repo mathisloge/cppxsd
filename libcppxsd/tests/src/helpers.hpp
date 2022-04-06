@@ -10,9 +10,14 @@ concept Named = requires(T)
 {
     { T::kName } -> std::convertible_to<std::string_view>;
 };
+template <typename T>
+concept NamedPtr = requires(T)
+{
+    { T::element_type::kName } -> std::convertible_to<std::string_view>;
+};
 // clang-format on
 
-template <Named R>
+template <typename R>
 struct require_type
 {
     using CbFnc = std::function<void(const R &)>;
@@ -27,5 +32,17 @@ struct require_type
     void operator()(const T &) const
     {
         throw std::runtime_error(std::string{"illegal: "} + std::string{T::kName});
+    }
+
+    template <NamedPtr T>
+    void operator()(const T &) const
+    {
+        throw std::runtime_error(std::string{"illegal ptr: "} + std::string{T::element_type::kName});
+    }
+
+    template <typename T>
+    void operator()(const T &) const
+    {
+        throw std::runtime_error(std::string{"illegal: TODO"});
     }
 };

@@ -21,16 +21,16 @@ TEST_CASE("schema")
         const auto schema_res = res[0];
 
         REQUIRE(schema_res->namespaces.size() == 3);
-        REQUIRE(schema_res->namespaces[0].uri == "http://www.w3.org/2001/XMLSchema");
-        REQUIRE_FALSE(schema_res->namespaces[0].prefix.has_value());
+        REQUIRE(schema_res->namespaces[0]->uri == "http://www.w3.org/2001/XMLSchema");
+        REQUIRE_FALSE(schema_res->namespaces[0]->prefix.has_value());
 
-        REQUIRE(schema_res->namespaces[1].uri == "http://www.w3.org/2001/XMLSchema");
-        REQUIRE(schema_res->namespaces[1].prefix.has_value());
-        REQUIRE(schema_res->namespaces[1].prefix.value() == "xsd");
+        REQUIRE(schema_res->namespaces[1]->uri == "http://www.w3.org/2001/XMLSchema");
+        REQUIRE(schema_res->namespaces[1]->prefix.has_value());
+        REQUIRE(schema_res->namespaces[1]->prefix.value() == "xsd");
 
-        REQUIRE(schema_res->namespaces[2].uri == "https://www.w3schools.com/w3shoolsschema");
-        REQUIRE(schema_res->namespaces[2].prefix.has_value());
-        REQUIRE(schema_res->namespaces[2].prefix.value() == "wsc");
+        REQUIRE(schema_res->namespaces[2]->uri == "https://www.w3schools.com/w3shoolsschema");
+        REQUIRE(schema_res->namespaces[2]->prefix.has_value());
+        REQUIRE(schema_res->namespaces[2]->prefix.value() == "wsc");
     }
 
     SECTION("customer schema")
@@ -75,6 +75,7 @@ TEST_CASE("schema")
         REQUIRE_NOTHROW(boost::apply_visitor(require_type<cppxsd::meta::xsd_import>{}, main_schema->imports[0]));
     }
 }
+
 /*
 TEST_CASE("xsd schema")
 {

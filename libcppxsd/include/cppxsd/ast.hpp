@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -7,6 +8,12 @@
 #include <boost/variant.hpp>
 namespace cppxsd::meta
 {
+
+template <class T>
+using ptr = std::shared_ptr<T>;
+template <class T>
+using weak_ptr = std::weak_ptr<T>;
+
 using NameT = std::string_view;
 struct schema;
 struct element;
@@ -17,6 +24,7 @@ struct simpleContent;
 struct enumeration;
 struct list;
 struct redefine;
+struct restriction;
 struct attributeGroup;
 struct attribute;
 struct anyAttribute;
@@ -64,13 +72,6 @@ struct Id
     std::string id;
 };
 using OptionalId = std::optional<Id>;
-
-struct qname_ref
-{
-    std::string base;
-    using AllRefs = boost::variant<BuildinType>;
-    AllRefs ref;
-};
 
 //! https://www.w3schools.com/xml/el_appinfo.asp
 struct appInfo
@@ -195,14 +196,6 @@ struct choice : XsdBaseElement
         boost::variant<element, group, boost::recursive_wrapper<choice>, boost::recursive_wrapper<sequence>, any>;
     std::vector<Content> content;
 };
-//! https://www.w3schools.com/xml/el_restriction.asp
-struct restriction : XsdBaseElement
-{
-    static constexpr NameT kName = "restriction";
-
-    qname_ref base;
-    GeneralAttributes attributes;
-};
 //! https://www.w3schools.com/xml/el_extension.asp
 struct extension : XsdBaseElement
 {
@@ -217,7 +210,7 @@ struct complexContent : XsdBaseElement
 {
     static constexpr NameT kName = "complexContent";
 
-    using Content = boost::variant<restriction, extension>;
+    using Content = boost::variant<boost::recursive_wrapper<restriction>, extension>;
     Content content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-simplecontent
@@ -225,7 +218,7 @@ struct simpleContent : XsdBaseElement
 {
     static constexpr NameT kName = "simpleContent";
 
-    using Content = boost::variant<restriction, extension>;
+    using Content = boost::variant<boost::recursive_wrapper<restriction>, extension>;
     Content content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-complextype-globale-definit
@@ -248,7 +241,7 @@ struct simpleType : XsdBaseElement
     std::string name;
 
     // childs
-    using Content = boost::variant<restriction, boost::recursive_wrapper<list>, xsd_union>;
+    using Content = boost::variant<boost::recursive_wrapper<restriction>, boost::recursive_wrapper<list>, xsd_union>;
     Content content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-enumeration
@@ -274,6 +267,23 @@ struct redefine : XsdBaseElement
     std::vector<Content> content;
 };
 
+struct qname_ref
+{
+    using SimpleTypePtr = ptr<const simpleType>;
+
+    std::string base;
+    using AllRefs = boost::variant<SimpleTypePtr, BuildinType>;
+    AllRefs ref;
+};
+//! https://www.w3schools.com/xml/el_restriction.asp
+struct restriction : XsdBaseElement
+{
+    static constexpr NameT kName = "restriction";
+
+    qname_ref base;
+    GeneralAttributes attributes;
+};
+
 //! https://www.w3schools.com/xml/el_include.asp
 struct xsd_include
 {
@@ -297,6 +307,11 @@ struct xmlns_namespace
 {
     static constexpr NameT kName = "namespace";
 
+    xmlns_namespace(std::optional<std::string> p, std::string uri)
+        : prefix{p}
+        , uri{uri}
+    {}
+
     std::optional<std::string> prefix;
     std::string uri;
 };
@@ -309,12 +324,12 @@ struct schema
     std::string uri;
     // attributes
     OptionalId id;
-    std::vector<xmlns_namespace> namespaces;
-    std::optional<std::reference_wrapper<xmlns_namespace>> targetNamespace;
+    std::vector<ptr<xmlns_namespace>> namespaces;
+    weak_ptr<xmlns_namespace> targetNamespace;
     // elements
     using ImportContent = boost::variant<xsd_include, xsd_import, redefine, annotation>;
     std::vector<ImportContent> imports;
-    using Content = boost::variant<simpleType, complexType, group, attributeGroup, element, attribute, notation>;
+    using Content = boost::variant<ptr<simpleType>, complexType, group, attributeGroup, element, attribute, notation>;
     std::vector<Content> contents;
     std::vector<annotation> annotations;
 };

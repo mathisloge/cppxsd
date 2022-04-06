@@ -216,7 +216,7 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
                 namespace_prefix = attr_name.substr(kXmlns.size() + 1);
 
             const std::string namespace_uri = attr.as_string();
-            schema->namespaces.emplace_back(meta::xmlns_namespace{namespace_prefix, namespace_uri});
+            schema->namespaces.emplace_back(std::make_shared<meta::xmlns_namespace>(namespace_prefix, namespace_uri));
         }
     }
     // END attribute: xmlns
@@ -226,13 +226,14 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
     if (targetNamespaceAttr)
     {
         const std::string targetNamespaceStr = targetNamespaceAttr.as_string();
-        auto it = std::find_if(
-            schema->namespaces.begin(),
-            schema->namespaces.end(),
-            [&targetNamespaceStr](const meta::xmlns_namespace &ns) { return ns.uri == targetNamespaceStr; });
+        auto it = std::find_if(schema->namespaces.begin(),
+                               schema->namespaces.end(),
+                               [&targetNamespaceStr](const meta::ptr<meta::xmlns_namespace> &ns) {
+                                   return ns->uri == targetNamespaceStr;
+                               });
         if (it == schema->namespaces.end())
             throw std::runtime_error("can't find a matching namespace for targetNamespace");
-        schema->targetNamespace = std::ref(*it);
+        schema->targetNamespace = *it;
     }
     // END attribute: targetNamespace
 
@@ -326,7 +327,7 @@ meta::element Parser::parseElement(const pugi::xml_node &node)
 {
     return meta::element{};
 }
-meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema)
+meta::ptr<meta::simpleType> Parser::parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema)
 {
     const auto parse_content = [this](const NodeType type,
                                       const pugi::xml_node &to_parse) -> meta::simpleType::Content {
@@ -344,7 +345,7 @@ meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool 
         }
     };
 
-    meta::simpleType simple_type;
+    meta::ptr<meta::simpleType> simple_type = std::make_shared<meta::simpleType>();
     bool found_content = false;
 
     const auto name = node.attribute("name");
@@ -353,7 +354,7 @@ meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool 
     else if (invoked_from_schema && !name)
         throw ParseAttrException(kNodeId_simpleType, "name", node);
     else
-        simple_type.name = name.as_string();
+        simple_type->name = name.as_string();
 
     for (const auto &child : node)
     {
@@ -361,17 +362,17 @@ meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool 
 
         if (child_type == NodeType::annotation)
         {
-            if (simple_type.annotation.has_value())
+            if (simple_type->annotation.has_value())
                 throw std::runtime_error("annotation already exists");
 
-            simple_type.annotation = parseAnnotation(child);
+            simple_type->annotation = parseAnnotation(child);
         }
         else if (contains_type({NodeType::restriction, NodeType::list, NodeType::xsd_union}, child_type))
         {
             if (found_content)
                 throw std::runtime_error("content already exists");
             found_content = true;
-            simple_type.content = parse_content(child_type, child);
+            simple_type->content = parse_content(child_type, child);
         }
         else
         {
@@ -396,6 +397,7 @@ meta::restriction Parser::parseRestriction(const pugi::xml_node &node)
     const auto valid_qref = boost::apply_visitor(IsValidQNameVisitor(), base_qref.ref);
     if (!valid_qref)
         throw std::runtime_error(fmt::format("can't find qname of {}", base));
+    restriction.base = std::move(base_qref);
 
     return restriction;
 }
@@ -463,11 +465,16 @@ concept Named = requires(T a)
 {
     { a.name } -> std::convertible_to<std::string>;
 };
+template <typename T>
+concept NamedPtr = requires(T a)
+{
+    { a->name } -> std::convertible_to<std::string>;
+};
 // clang-format on
 
 /**
  * @brief checks if a visitable type has a given name
- * 
+ *
  */
 struct FindQName : public boost::static_visitor<bool>
 {
@@ -480,6 +487,12 @@ struct FindQName : public boost::static_visitor<bool>
     bool operator()(const T &t) const
     {
         return ns.ends_with(t.name);
+    }
+
+    template <NamedPtr T>
+    bool operator()(const T &t) const
+    {
+        return ns.ends_with(t->name);
     }
 
     template <typename T>
@@ -530,8 +543,15 @@ static meta::BuildinType resolveQNameXSD(const std::string_view qname)
  */
 struct ConvertToQRef : boost::static_visitor<meta::qname_ref::AllRefs>
 {
+    using AllRefs = meta::qname_ref::AllRefs;
+
+    AllRefs operator()(const meta::ptr<meta::simpleType> &t) const
+    {
+        return t;
+    }
+
     template <typename T>
-    meta::qname_ref::AllRefs operator()(const T &) const
+    AllRefs operator()(const T &) const
     {
         throw std::runtime_error("invalid base type");
     }
@@ -542,15 +562,15 @@ meta::qname_ref Parser::resolveQName(const SchemaPtr &schema, const std::string_
     const auto ns = get_namespace_prefix(qname);
     // 1. check the current namespace
     // if the current targetNamespace matches, try to resolve the var name with the current schema.
-    if (schema->targetNamespace.has_value())
+    if (!schema->targetNamespace.expired())
     {
-        const auto &tref = schema->targetNamespace->get();
-        const bool own_ns_matches = ns == kEmptyNamespace ? !tref.prefix.has_value() : tref.prefix == ns;
+        const auto tref = schema->targetNamespace.lock();
+        const bool own_ns_matches = ns == kEmptyNamespace ? !tref->prefix.has_value() : tref->prefix == ns;
         if (own_ns_matches)
         {
             for (const auto &c : schema->contents)
             {
-                if (boost::apply_visitor(FindQName{ns}, c))
+                if (boost::apply_visitor(FindQName{qname}, c))
                 {
                     return meta::qname_ref{std::string{qname}, boost::apply_visitor(ConvertToQRef(), c)};
                 }
@@ -559,23 +579,23 @@ meta::qname_ref Parser::resolveQName(const SchemaPtr &schema, const std::string_
     }
 
     // 2. search in the other namespaces.
-    auto ns_view = schema->namespaces | std::views::filter([ns](const meta::xmlns_namespace &xmlns) {
+    auto ns_view = schema->namespaces | std::views::filter([ns](const meta::ptr<meta::xmlns_namespace> &xmlns) {
                        // when ns has no prefix, search for namespaces which don't have an prefix.
                        // when ns has a prefix, search for all namespaces with such a prefix.
-                       return ns == kEmptyNamespace ? !xmlns.prefix.has_value() : xmlns.prefix == ns;
+                       return ns == kEmptyNamespace ? !xmlns->prefix.has_value() : xmlns->prefix == ns;
                    });
 
     // 3. try to resolve buildin types.
-    for (const auto &x : ns_view | std::views::filter([](const auto &ns) { return is_buildin_xsd_schema(ns.uri); }))
+    for (const auto &x : ns_view | std::views::filter([](const auto &ns) { return is_buildin_xsd_schema(ns->uri); }))
     {
         const auto buildin_ref = resolveQNameXSD(qname);
         if (buildin_ref != BuildinType::unknown)
-            return meta::qname_ref{std::string{qname}, meta::qname_ref::AllRefs{buildin_ref}};
+            return meta::qname_ref{std::string{qname}, buildin_ref};
     }
 
     // search in imported or included schemas iff the searched qname isn't in the current schema or not a buildin type
     auto uri_string_view =
-        ns_view | std::views::transform([](const meta::xmlns_namespace &xmlns) { return xmlns.uri; });
+        ns_view | std::views::transform([](const meta::ptr<meta::xmlns_namespace> &xmlns) { return xmlns->uri; });
     for (const auto &inc : schema->imports)
     {
         auto schema_ptr = boost::apply_visitor(GetSchemaOp([&](const std::string_view uri) {
@@ -590,7 +610,7 @@ meta::qname_ref Parser::resolveQName(const SchemaPtr &schema, const std::string_
                 return schema_qname_ref;
         }
     }
-    return meta::qname_ref{"", meta::qname_ref::AllRefs{BuildinType::unknown}};
+    return meta::qname_ref{"", BuildinType::unknown};
 }
 
 } // namespace cppxsd::parser

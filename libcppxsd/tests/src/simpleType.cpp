@@ -3,6 +3,7 @@
 #include <cppxsd/cppxsd.hpp>
 #include "helpers.hpp"
 namespace fs = std::filesystem;
+namespace m = cppxsd::meta;
 
 TEST_CASE("simpleType")
 {
@@ -23,13 +24,13 @@ TEST_CASE("simpleType")
         const auto res_schema = res[0];
         REQUIRE(res_schema->contents.size() == 1);
         const auto &res_simpleType = res_schema->contents[0];
-        REQUIRE_NOTHROW(boost::apply_visitor(require_type<cppxsd::meta::simpleType>{}, res_simpleType));
+        REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::ptr<m::simpleType>>{}, res_simpleType));
 
         boost::apply_visitor(
-            require_type<cppxsd::meta::simpleType>{[](const cppxsd::meta::simpleType &simpleType) {
-                REQUIRE(simpleType.name == "LastNameType");
-                REQUIRE_FALSE(simpleType.annotation.has_value());
-                REQUIRE_NOTHROW(boost::apply_visitor(require_type<cppxsd::meta::restriction>{}, simpleType.content));
+            require_type<m::ptr<m::simpleType>>{[](const m::ptr<m::simpleType> &simpleType) {
+                REQUIRE(simpleType->name == "LastNameType");
+                REQUIRE_FALSE(simpleType->annotation.has_value());
+                REQUIRE_NOTHROW(boost::apply_visitor(require_type<cppxsd::meta::restriction>{}, simpleType->content));
             }},
             res_simpleType);
     }
