@@ -20,7 +20,9 @@ struct IsValidQName : public boost::static_visitor<bool>
 
 struct QNameRef
 {
-    using ElRef = boost::variant<meta::BuildinType, std::reference_wrapper<const meta::simpleType>>;
+    using BuildinRef = meta::BuildinType;
+    using SimpleTypeRef = std::reference_wrapper<const meta::simpleType>;
+    using ElRef = boost::variant<BuildinRef, SimpleTypeRef>;
     ElRef ref;
 };
 

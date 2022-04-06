@@ -4,6 +4,7 @@
 #include <functional>
 #include <string>
 #include <string_view>
+#include <fmt/format.h>
 // clang-format off
 template <typename T>
 concept Named = requires(T)
@@ -11,11 +12,34 @@ concept Named = requires(T)
     { T::kName } -> std::convertible_to<std::string_view>;
 };
 template <typename T>
-concept NamedPtr = requires(T)
+concept NamedRefType = requires(T)
 {
     { T::type::kName } -> std::convertible_to<std::string_view>;
 };
 // clang-format on
+
+struct PrintTypeName
+{
+    static constexpr std::string_view kUnknownType = "unknownType";
+
+    template <Named T>
+    std::string_view getName() const
+    {
+        return T::kName;
+    }
+
+    template <NamedRefType T>
+    std::string_view getName() const
+    {
+        return T::type::kName;
+    }
+
+    template <typename T>
+    std::string_view getName() const
+    {
+        return kUnknownType;
+    }
+};
 
 template <typename R>
 struct require_type
@@ -28,21 +52,10 @@ struct require_type
         if (cb)
             cb(x);
     }
-    template <Named T>
-    void operator()(const T &) const
-    {
-        throw std::runtime_error(std::string{"illegal: "} + std::string{T::kName});
-    }
-
-    template <NamedPtr T>
-    void operator()(const T &) const
-    {
-        throw std::runtime_error(std::string{"illegal ptr: "} + std::string{T::type::kName});
-    }
-
     template <typename T>
     void operator()(const T &) const
     {
-        throw std::runtime_error(std::string{"illegal: TODO"});
+        throw std::runtime_error(
+            fmt::format("[{}]: illegal: {}", PrintTypeName{}.getName<R>(), PrintTypeName{}.getName<T>()));
     }
 };

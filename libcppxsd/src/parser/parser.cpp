@@ -299,7 +299,7 @@ meta::element Parser::parseElement(const pugi::xml_node &node)
 {
     return meta::element{};
 }
-meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema)
+meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema) const
 {
     const auto parse_content = [this](const NodeType type,
                                       const pugi::xml_node &to_parse) -> meta::simpleType::Content {
@@ -310,7 +310,7 @@ meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool 
         case NodeType::list:
             return parseList(to_parse);
         case NodeType::xsd_union:
-            return meta::xsd_union{};
+            return parseUnion(to_parse);
 
         default:
             throw ParseException{kNodeId_simpleType, {kNodeId_restriction, kNodeId_list, kNodeId_union}, to_parse};
@@ -356,7 +356,7 @@ meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool 
     return simple_type;
 }
 
-meta::restriction Parser::parseRestriction(const pugi::xml_node &node)
+meta::restriction Parser::parseRestriction(const pugi::xml_node &node) const
 {
     meta::restriction restriction;
 
@@ -372,7 +372,7 @@ meta::restriction Parser::parseRestriction(const pugi::xml_node &node)
     return restriction;
 }
 
-meta::list Parser::parseList(const pugi::xml_node &node)
+meta::list Parser::parseList(const pugi::xml_node &node) const
 {
     const auto itemTypeAttr = node.attribute("itemType");
     const auto nodeSimpleType = node.find_child(
@@ -397,6 +397,26 @@ meta::list Parser::parseList(const pugi::xml_node &node)
         item.baseType = parseSimpleType(nodeSimpleType, false);
     }
 
+    return item;
+}
+
+meta::xsd_union Parser::parseUnion(const pugi::xml_node &node) const
+{
+    meta::xsd_union item;
+    item.id = getId(node);
+    item.annotation = getAnnotation(node);
+
+    const auto memberTypesAttr = node.attribute("memberTypes");
+    if (!memberTypesAttr)
+        throw ParseAttrException{kNodeId_union, "memberTypes", node};
+    const std::string_view memberTypes = memberTypesAttr.value();
+    for (const auto qname_view : std::views::split(memberTypes, ' '))
+    {
+        const std::string_view qname_str{qname_view.begin(), qname_view.end()};
+        if (!isValidQName(qname_str))
+            throw std::runtime_error(fmt::format("not a valid qname: {}", qname_str));
+        item.memberTypes.emplace_back(meta::QName{std::string{qname_str}});
+    }
     return item;
 }
 

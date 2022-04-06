@@ -3,9 +3,11 @@ add_executable(libcppxsd-tests
     src/simpleType.cpp
     src/restriction.cpp
     src/list.cpp
+    src/union.cpp
 )
 target_link_libraries(libcppxsd-tests 
     PRIVATE 
+        fmt::fmt
         cppxsd::cppxsd
         Catch2::Catch2WithMain
 )

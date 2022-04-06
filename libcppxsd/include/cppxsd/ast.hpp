@@ -182,9 +182,11 @@ struct restriction : XsdBaseElement
     GeneralAttributes attributes;
 };
 
-struct xsd_union
+struct xsd_union : XsdBaseElement
 {
     static constexpr NameT kName = "union";
+
+    std::vector<QName> memberTypes;
 };
 
 //! https://www.w3schools.com/xml/el_element.asp
