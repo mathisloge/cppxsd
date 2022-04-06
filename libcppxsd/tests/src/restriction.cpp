@@ -2,6 +2,7 @@
 #include <iostream>
 #include <catch2/catch_test_macros.hpp>
 #include <cppxsd/cppxsd.hpp>
+#include <cppxsd/resolve_qname.hpp>
 #include "helpers.hpp"
 namespace fs = std::filesystem;
 namespace m = cppxsd::meta;
@@ -31,22 +32,21 @@ TEST_CASE("restriction")
         const auto res_schema = res[0];
         REQUIRE(res_schema->contents.size() == 1);
         const auto &res_simpleType = res_schema->contents[0];
-        REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::ptr<m::simpleType>>{}, res_simpleType));
+        REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::simpleType>{}, res_simpleType));
         boost::apply_visitor(
-            require_type<m::ptr<m::simpleType>>{[](const m::ptr<m::simpleType> &simpleType) {
-                REQUIRE(simpleType->name == "LastNameType");
-                REQUIRE_FALSE(simpleType->annotation.has_value());
-                REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::restriction>{[](const m::restriction &restr) {
-                                                         REQUIRE(restr.base.base == "string");
-                                                         REQUIRE_NOTHROW(boost::apply_visitor(
-                                                             require_type<m::BuildinType>{[](const m::BuildinType t) {
+            require_type<m::simpleType>{[&](const m::simpleType &simpleType) {
+                REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::restriction>{}, simpleType.content));
+
+                boost::apply_visitor(
+                    require_type<m::restriction>{[&](const m::restriction &restr) {
+                        REQUIRE(restr.base.name == "string");
+                        const auto qname = cppxsd::resolveQName(res_schema, restr.base.name);
+                        REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::BuildinType>{[](const m::BuildinType t) {
                                                                  REQUIRE(t == m::BuildinType::xsd_string);
                                                              }},
-                                                             restr.base.ref));
-                                                     }},
-                                                     simpleType->content));
-
-                REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::restriction>{}, simpleType->content));
+                                                             qname.ref));
+                    }},
+                    simpleType.content);
             }},
             res_simpleType);
     }
@@ -73,22 +73,22 @@ TEST_CASE("restriction")
         REQUIRE(res_schema->contents.size() == 2);
         const auto &last_name = res_schema->contents[1];
 
-        REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::ptr<m::simpleType>>{}, last_name));
+        REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::simpleType>{}, last_name));
         boost::apply_visitor(
-            require_type<m::ptr<m::simpleType>>{[](const m::ptr<m::simpleType> &simpleType) {
-                REQUIRE(simpleType->name == "LastNameType");
-                REQUIRE_FALSE(simpleType->annotation.has_value());
-                REQUIRE_NOTHROW(
-                    boost::apply_visitor(require_type<m::restriction>{[](const m::restriction &restr) {
-                                             REQUIRE(restr.base.base == "myns:NameType");
-                                             REQUIRE_NOTHROW(boost::apply_visitor(
-                                                 require_type<m::qname_ref::SimpleTypePtr>{
-                                                     [](const m::qname_ref::SimpleTypePtr &t) { test(*t); }},
-                                                 restr.base.ref));
-                                         }},
-                                         simpleType->content));
-
-                REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::restriction>{}, simpleType->content));
+            require_type<m::simpleType>{[&](const m::simpleType &simpleType) {
+                REQUIRE(simpleType.name == "LastNameType");
+                REQUIRE_FALSE(simpleType.annotation.has_value());
+                REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::restriction>{}, simpleType.content));
+                boost::apply_visitor(
+                    require_type<m::restriction>{[&](const m::restriction &restr) {
+                        REQUIRE(restr.base.name == "myns:NameType");
+                        const auto qname = cppxsd::resolveQName(res_schema, restr.base.name);
+                        REQUIRE_NOTHROW(boost::apply_visitor(
+                            require_type<std::reference_wrapper<const m::simpleType>>{
+                                [](const std::reference_wrapper<const m::simpleType> &t) { test(t); }},
+                            qname.ref));
+                    }},
+                    simpleType.content);
             }},
             last_name);
     }

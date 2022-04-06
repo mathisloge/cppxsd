@@ -9,11 +9,6 @@
 namespace cppxsd::meta
 {
 
-template <class T>
-using ptr = std::shared_ptr<T>;
-template <class T>
-using weak_ptr = std::weak_ptr<T>;
-
 using NameT = std::string_view;
 struct schema;
 struct element;
@@ -24,7 +19,6 @@ struct simpleContent;
 struct enumeration;
 struct list;
 struct redefine;
-struct restriction;
 struct attributeGroup;
 struct attribute;
 struct anyAttribute;
@@ -52,18 +46,44 @@ using TimeDurationType = std::chrono::seconds;
 
 enum class BuildinType
 {
+    xsd_duration,
+    xsd_dateTime,
+    xsd_time,
+    xsd_date,
+    xsd_gYearMonth,
+    xsd_gYear,
+    xsd_gMonthDay,
+    xsd_gDay,
+    xsd_gMonth,
     xsd_string,
-    xsd_bool,
-    xsd_byte,
-    xsd_short,
-    xsd_int,
-    xsd_long,
-    xsd_unsigned_byte,
-    xsd_unsigned_short,
-    xsd_unsigned_int,
-    xsd_unsigned_long,
+    xsd_boolean,
+    xsd_base64Binary,
+    xsd_hexBinary,
     xsd_float,
+    xsd_decimal,
     xsd_double,
+    xsd_anyUri,
+
+    // decimals
+    xsd_integer,
+    xsd_nonPositiveInteger,
+    xsd_negativeInteger,
+    xsd_long,
+    xsd_int,
+    xsd_short,
+    xsd_byte,
+    xsd_nonNegativeInteger,
+    xsd_unsignedLong,
+    xsd_unsignedInt,
+    xsd_unsignedShort,
+    xsd_unsignedByte,
+    xsd_positiveInteger,
+
+    // strings
+    xsd_normalizedString,
+    xsd_token,
+    xsd_language,
+
     unknown
 };
 
@@ -116,6 +136,7 @@ struct XsdBaseElement
     // content
     OptionalAnnotation annotation;
 };
+
 //! https://www.w3schools.com/xml/el_anyattribute.asp
 struct anyAttribute
 {
@@ -145,6 +166,20 @@ struct attribute : XsdBaseElement
     static constexpr NameT kName = "attribute";
 
     std::optional<boost::recursive_wrapper<simpleType>> content;
+};
+
+struct QName
+{
+    std::string name;
+};
+
+//! https://www.w3schools.com/xml/el_restriction.asp
+struct restriction : XsdBaseElement
+{
+    static constexpr NameT kName = "restriction";
+
+    QName base;
+    GeneralAttributes attributes;
 };
 
 struct xsd_union
@@ -210,7 +245,7 @@ struct complexContent : XsdBaseElement
 {
     static constexpr NameT kName = "complexContent";
 
-    using Content = boost::variant<boost::recursive_wrapper<restriction>, extension>;
+    using Content = boost::variant<restriction, extension>;
     Content content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-simplecontent
@@ -218,7 +253,7 @@ struct simpleContent : XsdBaseElement
 {
     static constexpr NameT kName = "simpleContent";
 
-    using Content = boost::variant<boost::recursive_wrapper<restriction>, extension>;
+    using Content = boost::variant<restriction, extension>;
     Content content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-complextype-globale-definit
@@ -241,7 +276,7 @@ struct simpleType : XsdBaseElement
     std::string name;
 
     // childs
-    using Content = boost::variant<boost::recursive_wrapper<restriction>, boost::recursive_wrapper<list>, xsd_union>;
+    using Content = boost::variant<restriction, boost::recursive_wrapper<list>, xsd_union>;
     Content content;
 };
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-enumeration
@@ -265,23 +300,6 @@ struct redefine : XsdBaseElement
 
     using Content = boost::variant<simpleType, complexType, group, attributeGroup>;
     std::vector<Content> content;
-};
-
-struct qname_ref
-{
-    using SimpleTypePtr = ptr<const simpleType>;
-
-    std::string base;
-    using AllRefs = boost::variant<SimpleTypePtr, BuildinType>;
-    AllRefs ref;
-};
-//! https://www.w3schools.com/xml/el_restriction.asp
-struct restriction : XsdBaseElement
-{
-    static constexpr NameT kName = "restriction";
-
-    qname_ref base;
-    GeneralAttributes attributes;
 };
 
 //! https://www.w3schools.com/xml/el_include.asp
@@ -324,12 +342,12 @@ struct schema
     std::string uri;
     // attributes
     OptionalId id;
-    std::vector<ptr<xmlns_namespace>> namespaces;
-    weak_ptr<xmlns_namespace> targetNamespace;
+    std::vector<std::shared_ptr<xmlns_namespace>> namespaces;
+    std::weak_ptr<xmlns_namespace> targetNamespace;
     // elements
     using ImportContent = boost::variant<xsd_include, xsd_import, redefine, annotation>;
     std::vector<ImportContent> imports;
-    using Content = boost::variant<ptr<simpleType>, complexType, group, attributeGroup, element, attribute, notation>;
+    using Content = boost::variant<simpleType, complexType, group, attributeGroup, element, attribute, notation>;
     std::vector<Content> contents;
     std::vector<annotation> annotations;
 };

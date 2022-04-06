@@ -10,34 +10,6 @@
 #include "keys.hpp"
 namespace cppxsd::parser
 {
-constexpr bool is_url(const std::string_view uri)
-{
-    return uri.starts_with("http://") || uri.starts_with("https://");
-}
-constexpr bool contains_type(const std::vector<NodeType> &types, const NodeType curr_type)
-{
-    return std::any_of(std::begin(types), std::end(types), [curr_type](const auto type) { return type == curr_type; });
-}
-
-constexpr bool is_buildin_xsd_schema(const std::string_view schema_uri)
-{
-    if (!is_url(schema_uri))
-        return false;
-    return schema_uri.ends_with("w3.org/2001/XMLSchema");
-}
-
-struct IsValidQNameVisitor : public boost::static_visitor<bool>
-{
-    bool operator()(const BuildinType &t) const
-    {
-        return t != BuildinType::unknown;
-    }
-    template <typename T>
-    bool operator()(const T &) const
-    {
-        return true;
-    }
-};
 
 Parser::Parser(const fs::path &working_dir)
     : working_dir_{working_dir}
@@ -228,7 +200,7 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
         const std::string targetNamespaceStr = targetNamespaceAttr.as_string();
         auto it = std::find_if(schema->namespaces.begin(),
                                schema->namespaces.end(),
-                               [&targetNamespaceStr](const meta::ptr<meta::xmlns_namespace> &ns) {
+                               [&targetNamespaceStr](const std::shared_ptr<meta::xmlns_namespace> &ns) {
                                    return ns->uri == targetNamespaceStr;
                                });
         if (it == schema->namespaces.end())
@@ -327,7 +299,7 @@ meta::element Parser::parseElement(const pugi::xml_node &node)
 {
     return meta::element{};
 }
-meta::ptr<meta::simpleType> Parser::parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema)
+meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema)
 {
     const auto parse_content = [this](const NodeType type,
                                       const pugi::xml_node &to_parse) -> meta::simpleType::Content {
@@ -345,7 +317,7 @@ meta::ptr<meta::simpleType> Parser::parseSimpleType(const pugi::xml_node &node, 
         }
     };
 
-    meta::ptr<meta::simpleType> simple_type = std::make_shared<meta::simpleType>();
+    meta::simpleType simple_type{};
     bool found_content = false;
 
     const auto name = node.attribute("name");
@@ -354,7 +326,7 @@ meta::ptr<meta::simpleType> Parser::parseSimpleType(const pugi::xml_node &node, 
     else if (invoked_from_schema && !name)
         throw ParseAttrException(kNodeId_simpleType, "name", node);
     else
-        simple_type->name = name.as_string();
+        simple_type.name = name.as_string();
 
     for (const auto &child : node)
     {
@@ -362,17 +334,17 @@ meta::ptr<meta::simpleType> Parser::parseSimpleType(const pugi::xml_node &node, 
 
         if (child_type == NodeType::annotation)
         {
-            if (simple_type->annotation.has_value())
+            if (simple_type.annotation.has_value())
                 throw std::runtime_error("annotation already exists");
 
-            simple_type->annotation = parseAnnotation(child);
+            simple_type.annotation = parseAnnotation(child);
         }
         else if (contains_type({NodeType::restriction, NodeType::list, NodeType::xsd_union}, child_type))
         {
             if (found_content)
                 throw std::runtime_error("content already exists");
             found_content = true;
-            simple_type->content = parse_content(child_type, child);
+            simple_type.content = parse_content(child_type, child);
         }
         else
         {
@@ -384,6 +356,10 @@ meta::ptr<meta::simpleType> Parser::parseSimpleType(const pugi::xml_node &node, 
     return simple_type;
 }
 
+constexpr bool isValidQName(std::string_view qname) {
+    return true; //! TODO: add qname validation
+}
+
 meta::restriction Parser::parseRestriction(const pugi::xml_node &node)
 {
     meta::restriction restriction;
@@ -393,11 +369,9 @@ meta::restriction Parser::parseRestriction(const pugi::xml_node &node)
         throw ParseAttrException(kNodeId_restriction, "base", node);
     const std::string_view base = baseAttr.as_string();
 
-    const auto base_qref = resolveQName(base);
-    const auto valid_qref = boost::apply_visitor(IsValidQNameVisitor(), base_qref.ref);
-    if (!valid_qref)
+    if (!isValidQName(base))
         throw std::runtime_error(fmt::format("can't find qname of {}", base));
-    restriction.base = std::move(base_qref);
+    restriction.base = meta::QName{std::string{base}};
 
     return restriction;
 }
@@ -452,165 +426,6 @@ Parser::SchemaPtr Parser::getSchemaFromUri(const std::string_view uri) const
             return fs::equivalent(s_p, curr_p);
         });
     return (it != state.schemas.end()) ? *it : nullptr;
-}
-
-meta::qname_ref Parser::resolveQName(const std::string_view qname) const
-{
-    return resolveQName(state.current_schema, qname);
-}
-
-// clang-format off
-template <typename T>
-concept Named = requires(T a)
-{
-    { a.name } -> std::convertible_to<std::string>;
-};
-template <typename T>
-concept NamedPtr = requires(T a)
-{
-    { a->name } -> std::convertible_to<std::string>;
-};
-// clang-format on
-
-/**
- * @brief checks if a visitable type has a given name
- *
- */
-struct FindQName : public boost::static_visitor<bool>
-{
-    const std::string_view ns;
-    FindQName(std::string_view ns)
-        : ns(ns)
-    {}
-
-    template <Named T>
-    bool operator()(const T &t) const
-    {
-        return ns.ends_with(t.name);
-    }
-
-    template <NamedPtr T>
-    bool operator()(const T &t) const
-    {
-        return ns.ends_with(t->name);
-    }
-
-    template <typename T>
-    bool operator()(const T &) const
-    {
-        return false;
-    }
-};
-
-/**
- * @brief returns the schema of included or imported schemas. All others MAYBE visitable types, which don't export a
- * schema are returning nullptr's
- *
- */
-struct GetSchemaOp : public boost::static_visitor<std::shared_ptr<meta::schema>>
-{
-    using UriChecker = std::function<bool(const std::string_view)>;
-    const UriChecker check_uri;
-    GetSchemaOp(UriChecker &&check_uri)
-        : check_uri{std::forward<UriChecker>(check_uri)}
-    {}
-
-    std::shared_ptr<meta::schema> operator()(const meta::xsd_include &inc) const
-    {
-        return inc.schema.lock();
-    }
-    std::shared_ptr<meta::schema> operator()(const meta::xsd_import &inc) const
-    {
-        const std::string_view inc_uri = inc.namespace_uri;
-        return check_uri(inc.namespace_uri) ? inc.schema_location.lock() : nullptr;
-    }
-
-    template <typename T>
-    std::shared_ptr<meta::schema> operator()(const T &) const
-    {
-        return nullptr;
-    }
-};
-
-static meta::BuildinType resolveQNameXSD(const std::string_view qname)
-{
-    return value_name_to_type(qname);
-}
-
-/**
- * @brief this visitor only allows transformations which are legal for @see meta::qname_ref::AllRefs .
- *
- */
-struct ConvertToQRef : boost::static_visitor<meta::qname_ref::AllRefs>
-{
-    using AllRefs = meta::qname_ref::AllRefs;
-
-    AllRefs operator()(const meta::ptr<meta::simpleType> &t) const
-    {
-        return t;
-    }
-
-    template <typename T>
-    AllRefs operator()(const T &) const
-    {
-        throw std::runtime_error("invalid base type");
-    }
-};
-meta::qname_ref Parser::resolveQName(const SchemaPtr &schema, const std::string_view qname) const
-{
-
-    const auto ns = get_namespace_prefix(qname);
-    // 1. check the current namespace
-    // if the current targetNamespace matches, try to resolve the var name with the current schema.
-    if (!schema->targetNamespace.expired())
-    {
-        const auto tref = schema->targetNamespace.lock();
-        const bool own_ns_matches = ns == kEmptyNamespace ? !tref->prefix.has_value() : tref->prefix == ns;
-        if (own_ns_matches)
-        {
-            for (const auto &c : schema->contents)
-            {
-                if (boost::apply_visitor(FindQName{qname}, c))
-                {
-                    return meta::qname_ref{std::string{qname}, boost::apply_visitor(ConvertToQRef(), c)};
-                }
-            }
-        }
-    }
-
-    // 2. search in the other namespaces.
-    auto ns_view = schema->namespaces | std::views::filter([ns](const meta::ptr<meta::xmlns_namespace> &xmlns) {
-                       // when ns has no prefix, search for namespaces which don't have an prefix.
-                       // when ns has a prefix, search for all namespaces with such a prefix.
-                       return ns == kEmptyNamespace ? !xmlns->prefix.has_value() : xmlns->prefix == ns;
-                   });
-
-    // 3. try to resolve buildin types.
-    for (const auto &x : ns_view | std::views::filter([](const auto &ns) { return is_buildin_xsd_schema(ns->uri); }))
-    {
-        const auto buildin_ref = resolveQNameXSD(qname);
-        if (buildin_ref != BuildinType::unknown)
-            return meta::qname_ref{std::string{qname}, buildin_ref};
-    }
-
-    // search in imported or included schemas iff the searched qname isn't in the current schema or not a buildin type
-    auto uri_string_view =
-        ns_view | std::views::transform([](const meta::ptr<meta::xmlns_namespace> &xmlns) { return xmlns->uri; });
-    for (const auto &inc : schema->imports)
-    {
-        auto schema_ptr = boost::apply_visitor(GetSchemaOp([&](const std::string_view uri) {
-                                                   return std::ranges::any_of(
-                                                       uri_string_view, [uri](const auto &s) { return s == uri; });
-                                               }),
-                                               inc);
-        if (schema_ptr)
-        {
-            const auto schema_qname_ref = resolveQName(schema_ptr, qname);
-            if (boost::apply_visitor(IsValidQNameVisitor(), schema_qname_ref.ref))
-                return schema_qname_ref;
-        }
-    }
-    return meta::qname_ref{"", BuildinType::unknown};
 }
 
 } // namespace cppxsd::parser

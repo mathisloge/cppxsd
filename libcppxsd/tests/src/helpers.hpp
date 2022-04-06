@@ -13,7 +13,7 @@ concept Named = requires(T)
 template <typename T>
 concept NamedPtr = requires(T)
 {
-    { T::element_type::kName } -> std::convertible_to<std::string_view>;
+    { T::type::kName } -> std::convertible_to<std::string_view>;
 };
 // clang-format on
 
@@ -37,7 +37,7 @@ struct require_type
     template <NamedPtr T>
     void operator()(const T &) const
     {
-        throw std::runtime_error(std::string{"illegal ptr: "} + std::string{T::element_type::kName});
+        throw std::runtime_error(std::string{"illegal ptr: "} + std::string{T::type::kName});
     }
 
     template <typename T>

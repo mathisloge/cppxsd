@@ -55,10 +55,12 @@ inline constexpr std::string_view kBuildinTypeId_base64Binary{"base64Binary"};
 inline constexpr std::string_view kBuildinTypeId_string{"string"};
 inline constexpr std::string_view kBuildinTypeId_boolean{"boolean"};
 inline constexpr std::string_view kBuildinTypeId_byte{"byte"};
+inline constexpr std::string_view kBuildinTypeId_anyUri{"anyURI"};
 
-inline constexpr std::string_view kBuildinTypeId_date{"date"};
-inline constexpr std::string_view kBuildinTypeId_dateTime{"dateTime"};
 inline constexpr std::string_view kBuildinTypeId_duration{"duration"};
+inline constexpr std::string_view kBuildinTypeId_dateTime{"dateTime"};
+inline constexpr std::string_view kBuildinTypeId_time{"time"};
+inline constexpr std::string_view kBuildinTypeId_date{"date"};
 
 inline constexpr std::string_view kBuildinTypeId_decimal{"decimal"};
 inline constexpr std::string_view kBuildinTypeId_double{"double"};

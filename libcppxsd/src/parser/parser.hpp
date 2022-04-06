@@ -34,14 +34,11 @@ class Parser final
     meta::redefine parseRedefine(const pugi::xml_node &node);
     meta::annotation parseAnnotation(const pugi::xml_node &node);
     meta::element parseElement(const pugi::xml_node &node);
-    meta::ptr<meta::simpleType> parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema);
+    meta::simpleType parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema);
     meta::restriction parseRestriction(const pugi::xml_node &node);
 
     meta::OptionalId getId(const pugi::xml_node &node) const;
     SchemaPtr getSchemaFromUri(const std::string_view path) const;
-
-    meta::qname_ref resolveQName(const std::string_view qname) const;
-    meta::qname_ref resolveQName(const SchemaPtr& schema, const std::string_view qname) const;
 
   public:
     State state;
