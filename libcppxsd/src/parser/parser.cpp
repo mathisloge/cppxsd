@@ -290,7 +290,7 @@ meta::redefine Parser::parseRedefine(const pugi::xml_node &node)
     return meta::redefine{};
 }
 
-meta::annotation Parser::parseAnnotation(const pugi::xml_node &node)
+meta::annotation Parser::parseAnnotation(const pugi::xml_node &node) const
 {
     return meta::annotation{};
 }
@@ -308,7 +308,7 @@ meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool 
         case NodeType::restriction:
             return parseRestriction(to_parse);
         case NodeType::list:
-            return meta::list{};
+            return parseList(to_parse);
         case NodeType::xsd_union:
             return meta::xsd_union{};
 
@@ -356,10 +356,6 @@ meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool 
     return simple_type;
 }
 
-constexpr bool isValidQName(std::string_view qname) {
-    return true; //! TODO: add qname validation
-}
-
 meta::restriction Parser::parseRestriction(const pugi::xml_node &node)
 {
     meta::restriction restriction;
@@ -374,6 +370,43 @@ meta::restriction Parser::parseRestriction(const pugi::xml_node &node)
     restriction.base = meta::QName{std::string{base}};
 
     return restriction;
+}
+
+meta::list Parser::parseList(const pugi::xml_node &node)
+{
+    const auto itemTypeAttr = node.attribute("itemType");
+    const auto nodeSimpleType = node.find_child(
+        [](const pugi::xml_node &node) { return node_name_to_type(node.name()) == NodeType::simpleType; });
+
+    if (itemTypeAttr && nodeSimpleType)
+        throw std::runtime_error("itemType Attribute and simpleType are not allowed at the same time");
+    else if (!itemTypeAttr && !nodeSimpleType)
+        throw std::runtime_error("either itemType Attribute or simpleType have to be present");
+
+    meta::list item;
+    item.annotation = getAnnotation(node);
+    if (itemTypeAttr)
+    {
+        const std::string_view qname = itemTypeAttr.as_string();
+        if (!isValidQName(qname))
+            throw std::runtime_error(fmt::format("Not a valid qname: {}", qname));
+        item.baseType = meta::QName{std::string{qname}};
+    }
+    else if (nodeSimpleType)
+    {
+        item.baseType = parseSimpleType(nodeSimpleType, false);
+    }
+
+    return item;
+}
+
+meta::OptionalAnnotation Parser::getAnnotation(const pugi::xml_node &node) const
+{
+    const auto attr_node = node.find_child(
+        [](const pugi::xml_node &node) { return node_name_to_type(node.name()) == NodeType::annotation; });
+    if (!attr_node)
+        return meta::OptionalAnnotation{};
+    return meta::OptionalAnnotation{parseAnnotation(attr_node)};
 }
 
 meta::OptionalId Parser::getId(const pugi::xml_node &node) const

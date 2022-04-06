@@ -291,7 +291,7 @@ struct list : XsdBaseElement
 {
     static constexpr NameT kName = "list";
 
-    std::optional<simpleType> simple_type;
+    boost::variant<QName, simpleType> baseType;
 };
 //! https://www.w3schools.com/xml/el_redefine.asp
 struct redefine : XsdBaseElement

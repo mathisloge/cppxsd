@@ -32,11 +32,13 @@ class Parser final
     meta::xsd_include parseInclude(const pugi::xml_node &node);
     meta::xsd_import parseImport(const pugi::xml_node &node);
     meta::redefine parseRedefine(const pugi::xml_node &node);
-    meta::annotation parseAnnotation(const pugi::xml_node &node);
+    meta::annotation parseAnnotation(const pugi::xml_node &node) const;
     meta::element parseElement(const pugi::xml_node &node);
     meta::simpleType parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema);
     meta::restriction parseRestriction(const pugi::xml_node &node);
+    meta::list parseList(const pugi::xml_node& node);
 
+    meta::OptionalAnnotation getAnnotation(const pugi::xml_node &node) const;
     meta::OptionalId getId(const pugi::xml_node &node) const;
     SchemaPtr getSchemaFromUri(const std::string_view path) const;
 
