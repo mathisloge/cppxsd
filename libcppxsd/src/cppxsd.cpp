@@ -1,5 +1,7 @@
 #include "cppxsd/cppxsd.hpp"
 #include <iostream>
+#include <spdlog/spdlog.h>
+#include <spdlog/stopwatch.h>
 #include "parser/parser.hpp"
 
 #include "output/cpp/cpp_output.hpp"
@@ -13,9 +15,13 @@ SchemaContainer parse(const fs::path &file)
 
         for (auto const &dir_entry : fs::recursive_directory_iterator(file))
         {
-            std::cout << dir_entry << '\n';
+            spdlog::info("processing: {}", dir_entry.path().string());
             if (dir_entry.is_regular_file())
+            {
+                spdlog::stopwatch sw;
                 p.parse(dir_entry.path().string());
+                spdlog::info("Needed: {} seconds", sw);
+            }
         }
 
         out::CppOutput o{};

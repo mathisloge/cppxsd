@@ -28,3 +28,14 @@ const char *ParseAttrException::what() const noexcept
 {
     return msg.c_str();
 }
+
+ValidationException::ValidationException(const std::string_view curr_node,
+                                         const pugi::xml_node &node,
+                                         const std::string_view err_str)
+    : msg{fmt::format(FMT_COMPILE("[VALIDATION@{}] {}: {}"), node.path(), curr_node, err_str)}
+{}
+
+const char *ValidationException::what() const noexcept
+{
+    return msg.c_str();
+}

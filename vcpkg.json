@@ -5,6 +5,7 @@
         "pugixml",
         "curl",
         "fmt",
+        "spdlog",
         "boost-variant"
     ]
 }

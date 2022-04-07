@@ -6,6 +6,7 @@
 #include <curl/easy.h>
 #include <fmt/format.h>
 #include <pugixml.hpp>
+#include <spdlog/spdlog.h>
 #include "helpers.hpp"
 #include "keys.hpp"
 namespace cppxsd::parser
@@ -25,7 +26,7 @@ void Parser::parse(const std::string &xsd_file)
     }
     catch (const std::exception &ex)
     {
-        std::cout << "FAILED: " << ex.what() << std::endl;
+        spdlog::error("Failed to parse: {}", ex.what());
     }
 }
 
@@ -42,7 +43,7 @@ void Parser::parseFileContent(const std::string_view xml_content, const std::str
     }
     catch (const std::exception &ex)
     {
-        std::cout << "FAILED: " << ex.what() << std::endl;
+        spdlog::error("Failed to parse: {}", ex.what());
     }
 }
 
@@ -100,7 +101,7 @@ void Parser::parseUrl(const std::string_view file_path)
         return;
     }
 
-    std::cout << "request http: " << file_path << std::endl;
+    spdlog::info("[HTTP] request: {}", file_path);
     std::string data;
     CURL *curl = curl_easy_init();
 
@@ -113,7 +114,7 @@ void Parser::parseUrl(const std::string_view file_path)
     /* check for errors */
     if (curl_success != CURLE_OK)
     {
-        fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(curl_success));
+        spdlog::error("curl_easy_perform() failed: {}", curl_easy_strerror(curl_success));
     }
     else
     {
@@ -204,7 +205,7 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
                                    return ns->uri == targetNamespaceStr;
                                });
         if (it == schema->namespaces.end())
-            throw std::runtime_error("can't find a matching namespace for targetNamespace");
+            throw ValidationException{kNodeId_schema, node, "can't find a matching namespace for targetNamespace"};
         schema->targetNamespace = *it;
     }
     // END attribute: targetNamespace
@@ -262,7 +263,7 @@ meta::xsd_include Parser::parseInclude(const pugi::xml_node &node)
     const std::string attr{node.attribute("schemaLocation").as_string()};
     auto schema_include = tryParseUri(attr);
     if (!schema_include)
-        throw std::runtime_error(fmt::format("schema with include uri \"{}\" not found", attr));
+        throw ValidationException{kNodeId_include, node, fmt::format("schema with include uri \"{}\" not found", attr)};
     return meta::xsd_include{.id = getId(node), .schema = schema_include};
 }
 
@@ -277,7 +278,8 @@ meta::xsd_import Parser::parseImport(const pugi::xml_node &node)
         const std::string import_schema_uri = schemaLocAttr.as_string();
         schema_import = tryParseUri(import_schema_uri);
         if (!schema_import)
-            throw std::runtime_error(fmt::format("schema with import uri \"{}\" not found", import_schema_uri));
+            throw ValidationException{
+                kNodeId_import, node, fmt::format("schema with import uri \"{}\" not found", import_schema_uri)};
     }
 
     return meta::xsd_import{.id = getId(node),
@@ -322,7 +324,7 @@ meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool 
 
     const auto name = node.attribute("name");
     if (!invoked_from_schema && name)
-        throw std::runtime_error("when not invoked from schema, name isn't allowed");
+        throw ValidationException{kNodeId_simpleType, node, "when not invoked from schema, name isn't allowed"};
     else if (invoked_from_schema && !name)
         throw ParseAttrException(kNodeId_simpleType, "name", node);
     else
@@ -335,14 +337,14 @@ meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool 
         if (child_type == NodeType::annotation)
         {
             if (simple_type.annotation.has_value())
-                throw std::runtime_error("annotation already exists");
+                throw ValidationException{kNodeId_simpleType, node, "annotation already exists"};
 
             simple_type.annotation = parseAnnotation(child);
         }
         else if (contains_type({NodeType::restriction, NodeType::list, NodeType::xsd_union}, child_type))
         {
             if (found_content)
-                throw std::runtime_error("content already exists");
+                throw ValidationException{kNodeId_simpleType, node, "content already exists"};
             found_content = true;
             simple_type.content = parse_content(child_type, child);
         }
@@ -366,7 +368,7 @@ meta::restriction Parser::parseRestriction(const pugi::xml_node &node) const
     const std::string_view base = baseAttr.as_string();
 
     if (!isValidQName(base))
-        throw std::runtime_error(fmt::format("can't find qname of {}", base));
+        throw ValidationException{kNodeId_restriction, node, fmt::format("can't find qname of {}", base)};
     restriction.base = meta::QName{std::string{base}};
 
     return restriction;
@@ -379,9 +381,10 @@ meta::list Parser::parseList(const pugi::xml_node &node) const
         [](const pugi::xml_node &node) { return node_name_to_type(node.name()) == NodeType::simpleType; });
 
     if (itemTypeAttr && nodeSimpleType)
-        throw std::runtime_error("itemType Attribute and simpleType are not allowed at the same time");
+        throw ValidationException{
+            kNodeId_list, node, "itemType Attribute and simpleType are not allowed at the same time"};
     else if (!itemTypeAttr && !nodeSimpleType)
-        throw std::runtime_error("either itemType Attribute or simpleType have to be present");
+        throw ValidationException{kNodeId_list, node, "either itemType Attribute or simpleType have to be present"};
 
     meta::list item{};
     item.annotation = getAnnotation(node);
@@ -389,7 +392,7 @@ meta::list Parser::parseList(const pugi::xml_node &node) const
     {
         const std::string_view qname = itemTypeAttr.as_string();
         if (!isValidQName(qname))
-            throw std::runtime_error(fmt::format("Not a valid qname: {}", qname));
+            throw ValidationException{kNodeId_list, node, fmt::format("Not a valid qname: {}", qname)};
         item.baseType = meta::QName{std::string{qname}};
     }
     else if (nodeSimpleType)
@@ -414,7 +417,7 @@ meta::xsd_union Parser::parseUnion(const pugi::xml_node &node) const
     {
         const std::string_view qname_str{qname_view.begin(), qname_view.end()};
         if (!isValidQName(qname_str))
-            throw std::runtime_error(fmt::format("not a valid qname: {}", qname_str));
+            throw ValidationException{kNodeId_union, node, fmt::format("not a valid qname: {}", qname_str)};
         item.memberTypes.emplace_back(meta::QName{std::string{qname_str}});
     }
     return item;
@@ -435,7 +438,7 @@ meta::simpleContent Parser::parseSimpleContent(const pugi::xml_node &node) const
     else if (nodeExtension)
         item.content = parseExtension(nodeExtension);
     else
-        throw std::runtime_error("missing restriction or extension");
+        throw ValidationException{kNodeId_simpleContent, node, "missing restriction or extension"};
 
     return item;
 }
@@ -445,11 +448,11 @@ meta::extension Parser::parseExtension(const pugi::xml_node &node) const
     meta::extension item{};
     item.id = getId(node);
     item.annotation = getAnnotation(node);
-
-    item.content = [](const pugi::xml_node &node) -> meta::extension::Content {
-        // TODO
-    }(node);
-
+    /*
+        item.content = [](const pugi::xml_node &node) -> meta::extension::Content {
+            // TODO
+        }(node);
+    */
     return item;
 }
 

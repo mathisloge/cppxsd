@@ -4,6 +4,7 @@ find_package(Boost REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(CURL CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 
 add_library(libcppxsd "")
 add_library(cppxsd::cppxsd ALIAS libcppxsd)
@@ -18,6 +19,7 @@ target_link_libraries(libcppxsd PRIVATE
     pugixml::pugixml
     CURL::libcurl
     fmt::fmt
+    spdlog::spdlog
 )
 target_link_libraries(libcppxsd PUBLIC
     Boost::boost

@@ -1,8 +1,8 @@
 #pragma once
 #include <exception>
+#include <set>
 #include <string>
 #include <string_view>
-#include <set>
 #include <pugixml.hpp>
 
 struct ParseException : public std::exception
@@ -21,6 +21,15 @@ struct ParseAttrException : public std::exception
     ParseAttrException(const std::string_view current_processing_node_type,
                        const std::string_view attr,
                        const pugi::xml_node &node);
+    const char *what() const noexcept override;
+
+  private:
+    const std::string msg;
+};
+
+struct ValidationException : public std::exception
+{
+    ValidationException(const std::string_view curr_node, const pugi::xml_node &node, const std::string_view err_str);
     const char *what() const noexcept override;
 
   private:
