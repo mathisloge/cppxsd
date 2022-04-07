@@ -1,6 +1,5 @@
 #include "parser.hpp"
 #include <array>
-#include <iostream>
 #include <map>
 #include <ranges>
 #include <curl/easy.h>

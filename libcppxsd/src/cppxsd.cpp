@@ -1,5 +1,4 @@
 #include "cppxsd/cppxsd.hpp"
-#include <iostream>
 #include <spdlog/spdlog.h>
 #include <spdlog/stopwatch.h>
 #include "parser/parser.hpp"
