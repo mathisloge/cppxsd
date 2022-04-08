@@ -155,8 +155,18 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
         {
         case NodeType::simpleType:
             return parseSimpleType(to_parse, true);
+        case NodeType::complexType:
+            return parseComplexType(to_parse);
+        case NodeType::group:
+            return parseGroup(to_parse);
+        case NodeType::attributeGroup:
+            throw std::runtime_error(fmt::format("{}: NOT IMPLEMENTED", kNodeId_attributeGroup));
         case NodeType::element:
             return parseElement(to_parse);
+        case NodeType::attribute:
+            throw std::runtime_error(fmt::format("{}: NOT IMPLEMENTED", kNodeId_attribute));
+        case NodeType::notation:
+            throw std::runtime_error(fmt::format("{}: NOT IMPLEMENTED", kNodeId_notation));
 
         default:
             throw ParseException{kNodeId_schema,
@@ -296,10 +306,101 @@ meta::annotation Parser::parseAnnotation(const pugi::xml_node &node) const
     return meta::annotation{};
 }
 
-meta::element Parser::parseElement(const pugi::xml_node &node)
+meta::element Parser::parseElement(const pugi::xml_node &node) const
 {
     return meta::element{};
 }
+
+//! https://www.w3schools.com/xml/el_complextype.asp
+meta::complexType Parser::parseComplexType(const pugi::xml_node &node) const
+{
+    meta::complexType item{};
+
+    item.id = getId(node);
+    item.name = node.attribute("name").as_string();
+    item.abstract = node.attribute("abstract").as_bool(false);
+    item.mixed = node.attribute("mixed").as_bool(false);
+    item.annotation = getAnnotation(node);
+    item.attributes = getGeneralAttributes(node);
+
+    if (item.mixed)
+    {
+        const auto simpleContentNode = node.find_child([](const pugi::xml_node &child) {
+            const auto t = node_name_to_type(child.name());
+            return contains_type({NodeType::simpleContent}, t);
+        });
+        if (simpleContentNode)
+            throw ValidationException{kNodeId_complexType, node, "simpleContent is not allowed when mixed is set"};
+    }
+
+    // is this even correct? => https://www.w3.org/TR/xmlschema-0/#restrictingTypeDerivs
+    const auto parseBlockType = [&node](const std::string_view str) {
+        if (str.empty())
+            return meta::complexType::BlockType::schemaDefault;
+        else if (str == "extension")
+            return meta::complexType::BlockType::extension;
+        else if (str == "restriction")
+            return meta::complexType::BlockType::restriction;
+        else if (str == "#all")
+            return meta::complexType::BlockType::all;
+        else
+            throw ValidationException{kNodeId_complexType, node, fmt::format("couldn't parse block type: {}", str)};
+    };
+    item.blockType = parseBlockType(node.attribute("block").as_string());
+    item.finalType = parseBlockType(node.attribute("final").as_string());
+
+    const auto contentNode = node.find_child([](const auto child) {
+        const auto t = node_name_to_type(child.name());
+        return contains_type({NodeType::simpleContent, NodeType::complexContent}, t);
+    });
+    if (contentNode)
+    {
+        item.content = [this](const pugi::xml_node &child) -> meta::complexType::Content {
+            const auto t = node_name_to_type(child.name());
+            switch (t)
+            {
+            case NodeType::simpleContent:
+                return parseSimpleContent(child);
+            case NodeType::complexContent:
+                return parseComplexContent(child);
+            default:
+                throw ParseException{kNodeId_complexType, {kNodeId_simpleContent, kNodeId_complexContent}, child};
+            }
+        }(contentNode);
+    }
+    else
+    {
+        const auto subContentNode = node.find_child([](const auto child) {
+            const auto t = node_name_to_type(child.name());
+            return contains_type({NodeType::group, NodeType::all, NodeType::choice, NodeType::sequence}, t);
+        });
+        if (subContentNode)
+        {
+            item.content = [this](const pugi::xml_node &child) -> meta::complexType::SubContent {
+                const auto t = node_name_to_type(child.name());
+                switch (t)
+                {
+                case NodeType::group:
+                    return parseGroup(child);
+                case NodeType::all:
+                    return parseAll(child);
+                case NodeType::choice:
+                    return parseChoice(child);
+                case NodeType::sequence:
+                    return parseSequence(child);
+                default:
+                    throw ParseException{
+                        kNodeId_complexType, {kNodeId_group, kNodeId_all, kNodeId_choice, kNodeId_sequence}, child};
+                }
+            }(subContentNode);
+        }
+        item.attributes = getGeneralAttributes(node);
+    }
+
+    return item;
+}
+
+//! https://www.w3schools.com/xml/el_simpletype.asp
 meta::simpleType Parser::parseSimpleType(const pugi::xml_node &node, const bool invoked_from_schema) const
 {
     const auto parse_content = [this](const NodeType type,
@@ -422,9 +523,8 @@ meta::xsd_union Parser::parseUnion(const pugi::xml_node &node) const
     return item;
 }
 
-meta::simpleContent Parser::parseSimpleContent(const pugi::xml_node &node) const
+void Parser::parseCommonContent(meta::common_content &item, const pugi::xml_node &node) const
 {
-    meta::simpleContent item{};
     item.id = getId(node);
     item.annotation = getAnnotation(node);
 
@@ -438,21 +538,216 @@ meta::simpleContent Parser::parseSimpleContent(const pugi::xml_node &node) const
         item.content = parseExtension(nodeExtension);
     else
         throw ValidationException{kNodeId_simpleContent, node, "missing restriction or extension"};
+}
+
+//! https://www.w3schools.com/xml/el_simplecontent.asp
+meta::simpleContent Parser::parseSimpleContent(const pugi::xml_node &node) const
+{
+    meta::simpleContent item{};
+    parseCommonContent(item, node);
 
     return item;
 }
 
+//! https://www.w3schools.com/xml/el_complexcontent.asp
+meta::complexContent Parser::parseComplexContent(const pugi::xml_node &node) const
+{
+    meta::complexContent item{};
+    parseCommonContent(item, node);
+
+    item.mixed = node.attribute("mixed").as_bool(false);
+
+    return item;
+}
+
+//! https://www.w3schools.com/xml/el_extension.asp
 meta::extension Parser::parseExtension(const pugi::xml_node &node) const
 {
     meta::extension item{};
     item.id = getId(node);
     item.annotation = getAnnotation(node);
-    /*
-        item.content = [](const pugi::xml_node &node) -> meta::extension::Content {
-            // TODO
-        }(node);
-    */
+
+    const auto contentNode = node.find_child([](const pugi::xml_node &child) {
+        const auto t = node_name_to_type(child.name());
+        return contains_type({NodeType::group, NodeType::all, NodeType::choice, NodeType::sequence}, t);
+    });
+    if (contentNode)
+    {
+        item.content = [this](const pugi::xml_node &child) -> meta::extension::Content {
+            const auto ntype = node_name_to_type(child.name());
+            switch (ntype)
+            {
+            case NodeType::group:
+                return parseGroup(child);
+            case NodeType::all:
+                return parseAll(child);
+            case NodeType::choice:
+                return parseChoice(child);
+            case NodeType::sequence:
+                return parseSequence(child);
+            default:
+                throw ParseException{
+                    kNodeId_extension, {kNodeId_group, kNodeId_all, kNodeId_choice, kNodeId_sequence}, child};
+            }
+        }(contentNode);
+    }
+
+    item.attributes = getGeneralAttributes(node);
+
     return item;
+}
+
+//! https://www.w3schools.com/xml/el_choice.asp
+meta::choice Parser::parseChoice(const pugi::xml_node &node) const
+{
+    meta::choice item{};
+    parseCommonSequence(item, node);
+    return item;
+}
+
+//! https://www.w3schools.com/xml/el_sequence.asp
+meta::sequence Parser::parseSequence(const pugi::xml_node &node) const
+{
+    meta::sequence item{};
+    parseCommonSequence(item, node);
+    return item;
+}
+
+void Parser::parseCommonSequence(meta::common_sequence &item, const pugi::xml_node &node) const
+{
+    item.id = getId(node);
+    item.annotation = getAnnotation(node);
+
+    const auto max_occurs_attr = node.attribute("maxOccurs");
+    const auto min_occurs_attr = node.attribute("minOccurs");
+    const std::string_view max_occ_str = max_occurs_attr.value();
+    if (max_occ_str == "unbounded")
+        item.max_occurs = meta::common_sequence::kUnbounded;
+    else
+        item.max_occurs = max_occurs_attr.as_ullong(1);
+    item.min_occurs = min_occurs_attr.as_ullong(1);
+
+    const auto parseContent = [this](const pugi::xml_node &child) -> meta::common_sequence::Content {
+        const auto ntype = node_name_to_type(child.name());
+        switch (ntype)
+        {
+        case NodeType::element:
+            return parseElement(child);
+        case NodeType::group:
+            return parseGroup(child);
+        case NodeType::choice:
+            return parseChoice(child);
+        case NodeType::sequence:
+            return parseSequence(child);
+        case NodeType::any:
+            return parseAny(child);
+        default:
+            throw ParseException{
+                kNodeId_choice, {kNodeId_element, kNodeId_group, kNodeId_choice, kNodeId_sequence, kNodeId_any}, child};
+        }
+    };
+
+    for (const pugi::xml_node child : node)
+    {
+        const auto ntype = node_name_to_type(child.name());
+        if (contains_type(
+                std::vector<NodeType>{
+                    NodeType::element, NodeType::group, NodeType::choice, NodeType::sequence, NodeType::any},
+                ntype))
+        {
+
+            item.content.emplace_back(parseContent(child));
+        }
+    }
+}
+
+//! https://www.w3schools.com/xml/el_all.asp
+meta::all Parser::parseAll(const pugi::xml_node &node) const
+{
+    meta::all item{};
+    item.id = getId(node);
+    item.annotation = getAnnotation(node);
+
+    const auto maxOccursAttr = node.attribute("maxOccurs");
+    const auto minOccursAttr = node.attribute("minOccurs");
+
+    item.max_occurs = maxOccursAttr.as_ullong(1);
+    item.min_occurs = minOccursAttr.as_ullong(1);
+    if (item.max_occurs != 1)
+        throw ValidationException{kNodeId_all, node, "maxOccurs value must be 1."};
+
+    if (item.min_occurs > 1)
+        throw ValidationException{kNodeId_all, node, "minOccurs value must be 0 or 1."};
+
+    for (const auto child : node)
+    {
+        const auto ctype = node_name_to_type(child.name());
+        if (ctype == NodeType::element)
+            item.content.emplace_back(parseElement(child));
+    }
+
+    return item;
+}
+
+//! https://www.w3schools.com/xml/el_group.asp
+meta::group Parser::parseGroup(const pugi::xml_node &node) const
+{
+    meta::group item{};
+    item.id = getId(node);
+    item.annotation = getAnnotation(node);
+
+    const auto max_occurs_attr = node.attribute("maxOccurs");
+    const auto min_occurs_attr = node.attribute("minOccurs");
+    const std::string_view max_occ_str = max_occurs_attr.value();
+    if (max_occ_str == "unbounded")
+        item.max_occurs = meta::common_sequence::kUnbounded;
+    else
+        item.max_occurs = max_occurs_attr.as_ullong(1);
+    item.min_occurs = min_occurs_attr.as_ullong(1);
+
+    const auto refAttr = node.attribute("ref");
+    const auto nameAttr = node.attribute("name");
+    if (refAttr && nameAttr)
+        throw ValidationException{kNodeId_group, node, "name and ref can't be present at the same time"};
+    item.ref = meta::QName{refAttr.as_string()};
+    item.name = nameAttr.as_string();
+
+    if (refAttr && !isValidQName(item.ref.name))
+        throw ValidationException{kNodeId_group, node, "ref must be a valid QName"};
+
+    const auto cnode = node.find_child([](const pugi::xml_node &node) {
+        const auto tnode = node_name_to_type(node.name());
+        return contains_type(std::vector<NodeType>{NodeType::all, NodeType::choice, NodeType::sequence}, tnode);
+    });
+    if (cnode)
+    {
+        item.content = [this](const pugi::xml_node &child) -> meta::group::Content {
+            const auto tnode = node_name_to_type(child.name());
+            switch (tnode)
+            {
+            case NodeType::all:
+                return parseAll(child);
+            case NodeType::choice:
+                return parseChoice(child);
+            case NodeType::sequence:
+                return parseSequence(child);
+            default:
+                throw ParseException{kNodeId_group, {kNodeId_choice, kNodeId_sequence, kNodeId_all}, child};
+            }
+        }(cnode);
+    }
+
+    return item;
+}
+meta::any Parser::parseAny(const pugi::xml_node &node) const
+{
+    throw std::runtime_error("currently not supported");
+    return meta::any{};
+}
+
+meta::GeneralAttributes Parser::getGeneralAttributes(const pugi::xml_node &node) const
+{
+    return meta::GeneralAttributes{};
 }
 
 meta::OptionalAnnotation Parser::getAnnotation(const pugi::xml_node &node) const

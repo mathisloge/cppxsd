@@ -1,4 +1,5 @@
 #pragma once
+#include <ranges>
 #include <string_view>
 #include <vector>
 #include "keys.hpp"
@@ -43,7 +44,7 @@ constexpr bool is_url(const std::string_view uri)
 }
 constexpr bool contains_type(const std::vector<NodeType> &types, const NodeType curr_type)
 {
-    return std::any_of(std::begin(types), std::end(types), [curr_type](const auto type) { return type == curr_type; });
+    return std::ranges::any_of(types, [curr_type](const auto type) { return type == curr_type; });
 }
 constexpr bool isValidQName(std::string_view qname)
 {

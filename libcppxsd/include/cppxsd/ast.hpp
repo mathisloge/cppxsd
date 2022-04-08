@@ -204,10 +204,13 @@ struct element : XsdBaseElement
     Content content;
 };
 
-//! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-all-ausserhalb-gruppe
+//! https://www.w3schools.com/xml/el_all.asp
 struct all : XsdBaseElement
 {
     static constexpr NameT kName = "all";
+    uint64_t max_occurs;
+    uint64_t min_occurs;
+
     std::vector<element> content;
 };
 
@@ -217,29 +220,42 @@ struct any : XsdBaseElement
     static constexpr NameT kName = "any";
 };
 
-struct group
+struct group : XsdBaseElement
 {
     static constexpr NameT kName = "group";
+    QName ref;
+    std::string name;
+
+    uint64_t max_occurs;
+    uint64_t min_occurs;
+
+    using Content = boost::variant<all, boost::recursive_wrapper<choice>, boost::recursive_wrapper<sequence>>;
+    Content content;
 };
 
 //! https://www.w3schools.com/xml/el_sequence.asp
-struct sequence : XsdBaseElement
+//! https://www.w3schools.com/xml/el_choice.asp
+struct common_sequence : XsdBaseElement
 {
-    static constexpr NameT kName = "sequence";
-
     using Content =
         boost::variant<element, group, boost::recursive_wrapper<choice>, boost::recursive_wrapper<sequence>, any>;
+    static constexpr uint64_t kUnbounded = std::numeric_limits<uint64_t>::max();
+
+    uint64_t max_occurs;
+    uint64_t min_occurs;
     std::vector<Content> content;
 };
 
+//! https://www.w3schools.com/xml/el_sequence.asp
+struct sequence : common_sequence
+{
+    static constexpr NameT kName = "sequence";
+};
+
 //! https://www.w3schools.com/xml/el_choice.asp
-struct choice : XsdBaseElement
+struct choice : common_sequence
 {
     static constexpr NameT kName = "choice";
-
-    using Content =
-        boost::variant<element, group, boost::recursive_wrapper<choice>, boost::recursive_wrapper<sequence>, any>;
-    std::vector<Content> content;
 };
 
 //! https://www.w3schools.com/xml/el_extension.asp
@@ -252,35 +268,51 @@ struct extension : XsdBaseElement
     GeneralAttributes attributes;
 };
 
-//! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-complexcontent
-struct complexContent : XsdBaseElement
+struct common_content : XsdBaseElement
 {
-    static constexpr NameT kName = "complexContent";
-
     using Content = boost::variant<restriction, extension>;
     Content content;
 };
 
+//! https://www.w3schools.com/xml/el_complexcontent.asp
+struct complexContent : common_content
+{
+    static constexpr NameT kName = "complexContent";
+
+    bool mixed;
+};
+
 //! https://www.w3schools.com/xml/el_simplecontent.asp
-struct simpleContent : XsdBaseElement
+struct simpleContent : common_content
 {
     static constexpr NameT kName = "simpleContent";
-
-    using Content = boost::variant<restriction, extension>;
-    Content content;
 };
 
 //! https://www.data2type.de/xml-xslt-xslfo/xml-schema/element-referenz/xs-complextype-globale-definit
 struct complexType : XsdBaseElement
 {
     static constexpr NameT kName = "complexType";
-
+    enum class BlockType
+    {
+        all,
+        extension,
+        restriction,
+        schemaDefault
+    };
     // attributes
     std::string name;
+    bool abstract;
+    bool mixed;
+    BlockType blockType;
+    BlockType finalType;
     // childs
-    using Content = boost::variant<simpleContent, complexContent, group, all, choice, sequence>;
-    GeneralAttributes attributes;
+    //! (annotation?,(simpleContent|complexContent|((group|all|choice|sequence)?,((attribute|attributeGroup)*,anyAttribute?))))
+
+    //! simpleContent|complexContent|((group|all|choice|sequence)?,((attribute|attributeGroup)*,anyAttribute?))
+    using SubContent = boost::variant<group, all, choice, sequence>;
+    using Content = boost::variant<simpleContent, complexContent, SubContent>;
     Content content;
+    GeneralAttributes attributes; //! only present when Content != (simpleContent|complexContent)
 };
 
 //! https://www.w3schools.com/xml/el_simpletype.asp

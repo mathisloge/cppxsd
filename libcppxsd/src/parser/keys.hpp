@@ -82,12 +82,18 @@ inline constexpr std::string_view kBuildinTypeId_unsignedShort{"unsignedShort"};
 
 enum class NodeType
 {
+    all,
+    any,
+    choice,
     schema,
+    sequence,
     include,
     import,
     redefine,
     simpleType,
     complexType,
+    simpleContent,
+    complexContent,
     group,
     attribute,
     attributeGroup,
