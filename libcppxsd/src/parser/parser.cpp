@@ -92,6 +92,7 @@ static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
     std::copy(static_cast<char *>(contents), static_cast<char *>(contents) + realsize, std::back_inserter(mem));
     return realsize;
 }
+
 void Parser::parseUrl(const std::string_view file_path)
 {
     const std::string file_path_str{file_path};
@@ -306,9 +307,44 @@ meta::annotation Parser::parseAnnotation(const pugi::xml_node &node) const
     return meta::annotation{};
 }
 
+//! https://www.w3schools.com/xml/el_element.asp
 meta::element Parser::parseElement(const pugi::xml_node &node) const
 {
-    return meta::element{};
+    meta::element item;
+
+    item.id = getId(node);
+    item.name = node.attribute("name").as_string();
+    const auto refAttr = node.attribute("ref");
+    if (refAttr)
+        item.ref = meta::QName{refAttr.as_string()};
+    if (!isValidQName(item.ref.name))
+        throw ValidationException{kNodeId_element, node, fmt::format("can't find qname of {}", item.ref.name)};
+        
+    //! TODO: implement all attributes
+
+    item.annotation = getAnnotation(node);
+
+    const auto contentNode = node.find_child([](const pugi::xml_node &child) {
+        const auto t = node_name_to_type(child.name());
+        return contains_type({NodeType::simpleType, NodeType::complexType}, t);
+    });
+    if (contentNode)
+    {
+        item.content = [this](const pugi::xml_node &child) -> meta::element::Content {
+            const auto type = node_name_to_type(child.name());
+            switch (type)
+            {
+            case NodeType::simpleType:
+                return parseSimpleType(child, false);
+            case NodeType::complexType:
+                return parseComplexType(child);
+            default:
+                throw ParseException{kNodeId_element, {kNodeId_simpleType, kNodeId_complexType}, child};
+            }
+        }(contentNode);
+    }
+
+    return item;
 }
 
 //! https://www.w3schools.com/xml/el_complextype.asp

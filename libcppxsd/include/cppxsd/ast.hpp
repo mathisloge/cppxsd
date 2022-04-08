@@ -95,6 +95,11 @@ struct Id
 };
 using OptionalId = std::optional<Id>;
 
+struct QName
+{
+    std::string name;
+};
+
 //! https://www.w3schools.com/xml/el_appinfo.asp
 struct appInfo
 {
@@ -135,6 +140,8 @@ struct XsdBaseElement
 {
     // attributes
     OptionalId id;
+    std::string name;
+    QName ref;
 
     // content
     OptionalAnnotation annotation;
@@ -172,11 +179,6 @@ struct attribute : XsdBaseElement
     static constexpr NameT kName = "attribute";
 
     std::optional<boost::recursive_wrapper<simpleType>> content;
-};
-
-struct QName
-{
-    std::string name;
 };
 
 //! https://www.w3schools.com/xml/el_restriction.asp
