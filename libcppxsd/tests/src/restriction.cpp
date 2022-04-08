@@ -1,5 +1,4 @@
 #include <filesystem>
-#include <iostream>
 #include <catch2/catch_test_macros.hpp>
 #include <cppxsd/cppxsd.hpp>
 #include <cppxsd/resolve_qname.hpp>
