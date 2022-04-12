@@ -314,12 +314,40 @@ meta::element Parser::parseElement(const pugi::xml_node &node) const
 
     item.id = getId(node);
     item.name = node.attribute("name").as_string();
-    const auto refAttr = node.attribute("ref");
-    if (refAttr)
-        item.ref = meta::QName{refAttr.as_string()};
-    if (!isValidQName(item.ref.name))
-        throw ValidationException{kNodeId_element, node, fmt::format("can't find qname of {}", item.ref.name)};
-        
+    {
+        const auto refAttr = node.attribute("ref");
+        if (refAttr)
+        {
+            item.ref = meta::QName{refAttr.as_string()};
+            if (!isValidQName(item.ref->name))
+                throw ValidationException{
+                    kNodeId_element, node, fmt::format("ref: can't find qname of {}", item.ref->name)};
+        }
+    }
+    {
+        const auto typeAttr = node.attribute("type");
+        if (typeAttr)
+        {
+            item.type = meta::QName{typeAttr.as_string()};
+            if (!isValidQName(item.type->name))
+                throw ValidationException{
+                    kNodeId_element, node, fmt::format("type: can't find qname of {}", item.type->name)};
+        }
+    }
+    { //! https://stackoverflow.com/questions/39868769/xsd-element-substitution-group-example
+        const auto subsGroupAttr = node.attribute("substitutionGroup");
+        if (subsGroupAttr)
+        {
+            item.substitution_group = meta::QName{subsGroupAttr.as_string()};
+            if (!isValidQName(item.substitution_group->name))
+                throw ValidationException{
+                    kNodeId_element,
+                    node,
+                    fmt::format("substitution_group: can't find qname of {}", item.substitution_group->name)};
+        }
+    }
+    
+    item.is_abstract = node.attribute("abstract").as_bool(false);
     //! TODO: implement all attributes
 
     item.annotation = getAnnotation(node);

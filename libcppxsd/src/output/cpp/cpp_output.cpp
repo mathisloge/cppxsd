@@ -4,6 +4,7 @@
 #include <cppxsd/resolve_qname.hpp>
 #include <fmt/args.h>
 #include <fmt/format.h>
+#include "struct_builder.hpp"
 #define PRINT_T(out) std::cout << out << std::endl;
 
 using namespace fmt::literals;
@@ -48,34 +49,12 @@ lambda_visitor<ReturnType, Lambdas...> make_lambda_visitor(Lambdas... lambdas)
 {
     return {lambdas...};
 }
-
 struct ProcessingState
 {
     const meta::schema &schema;
 };
 
-struct ObjectDef
-{
-    virtual void generateDefinitionCode(std::ostream &header) const = 0;
-    virtual void generateImplementationCode(std::ostream &impl) const = 0;
-};
-struct TypeDef : public ObjectDef
-{
-    std::string type_str;
-    std::string name_str;
-
-    void generateDefinitionCode(std::ostream &header) const override
-    {
-        if (type_str.empty())
-            header << "//! FIXME: ";
-        else
-            header << type_str << ' ';
-        header << name_str << ';' << std::endl;
-    }
-
-    void generateImplementationCode(std::ostream &impl) const override
-    {}
-};
+#if 0
 
 struct StructDef : public ObjectDef
 {
@@ -221,51 +200,118 @@ struct NamespaceDef
         }
     }
 };
+#endif
+
+struct NamespaceBuilder : public NamespaceDef
+{
+    NamespaceBuilder(const ProcessingState &state, const meta::schema &schema)
+    {
+        const auto &myns = schema.targetNamespace.lock();
+        name_ = myns->prefix.value_or("");
+
+        for (const auto &c : schema.contents)
+        {
+            TopLevelVisitor vis(state);
+            add(std::forward<ObjectDefPtr>(boost::apply_visitor(vis, c)));
+        }
+    }
+
+  private:
+    struct TopLevelVisitor : boost::static_visitor<ObjectDefPtr>
+    {
+        const ProcessingState &state_;
+        TopLevelVisitor(const ProcessingState &state)
+            : state_{state}
+        {}
+
+        ObjectDefPtr operator()(const meta::element &arg)
+        {
+            //! simple type alias when name && type. E.g.: <xs:element name="myname" type="xs:string"/>
+            if (!arg.name.empty() && arg.type.has_value())
+            {
+                const auto type_ref = cppxsd::resolveQName(state_.schema, arg.type.value().name);
+                const auto visitor = make_lambda_visitor<ObjectDefPtr>(
+                    [&](const cppxsd::QNameRef::BuildinRef &x) {
+                        auto alias = std::make_unique<TypeAliasDef>();
+                        alias->alias_str = arg.name;
+                        alias->type_str = buildintype_to_datatype(x);
+                        return alias;
+                    },
+                    [&](const cppxsd::QNameRef::SimpleTypeRef &x) {
+                        auto alias = std::make_unique<TypeAliasDef>();
+                        alias->alias_str = arg.name;
+                        alias->type_str = x.get().name;
+                        return alias;
+                    });
+                return boost::apply_visitor(visitor, type_ref.ref);
+            }
+            else if (!arg.name.empty() && arg.substitution_group.has_value()) // type inherits from substitution_group
+            {
+                // need a simple resolveQName method, which just finds an element with the name in the visible tree. maybe rename current `resolveQName` to `resolveQNameStrict`
+                const auto type_ref = cppxsd::resolveQName(state_.schema, arg.substitution_group.value().name);
+
+                const auto visitor = make_lambda_visitor<std::string>(
+                    [&](const cppxsd::QNameRef::BuildinRef &x) { return std::string{buildintype_to_datatype(x)}; },
+                    [&](const cppxsd::QNameRef::SimpleTypeRef &x) { return x.get().name; });
+                auto obj = std::make_unique<StructDef>();
+                obj->name_ = arg.name;
+                obj->inheritFrom(boost::apply_visitor(visitor, type_ref.ref));
+                return obj;
+            }
+            else if (!arg.name.empty())
+            {
+                auto obj = std::make_unique<StructDef>();
+                obj->name_ = arg.name;
+                return obj;
+            }
+
+            auto obj = std::make_unique<StructDef>();
+            return obj;
+        };
+        ObjectDefPtr operator()(const meta::simpleType &arg)
+        {
+            auto obj = std::make_unique<StructDef>();
+            return obj;
+        };
+        ObjectDefPtr operator()(const meta::complexType &arg)
+        {
+            auto obj = std::make_unique<StructDef>();
+            return obj;
+        };
+
+        template <typename T>
+        ObjectDefPtr operator()(const T &)
+        {
+            throw std::runtime_error("not implemented");
+            return nullptr;
+        }
+    };
+};
 
 struct FileDef
 {
     std::string file_name;
-    std::vector<NamespaceDef> namespaces;
+    ObjectDefPtr file_namespace;
 
     void process(const meta::schema &schema)
     {
         ProcessingState state{schema};
         auto myns = schema.targetNamespace.lock();
-        auto &myns_def = namespaceEntry();
-        myns_def.name = myns->prefix.value_or("");
-
-        //! todo: schema.imports
-        auto ns_visitor =
-            make_lambda_visitor<void>([](const auto &arg) { std::cout << "WIP" << ' '; },
-                                      [&](const meta::element &arg) { myns_def.process(state, arg); },
-                                      [&](const meta::simpleType &arg) { myns_def.process(state, arg); },
-                                      [&](const meta::complexType &arg) { myns_def.process(state, arg); });
-        for (const auto &c : schema.contents)
-            boost::apply_visitor(ns_visitor, c);
-    }
-
-    NamespaceDef &namespaceEntry()
-    {
-        return namespaces.emplace_back();
+        file_namespace = std::make_unique<NamespaceBuilder>(state, schema);
     }
 
     void generateCode() const
     {
+        constexpr std::string_view kEmpty = "";
         std::ofstream header{"test.gen.hpp"};
         std::ofstream impl{"test.gen.cpp"};
 
         header << "#pragma once" << std::endl;
         header << "#include <string>" << std::endl;
-        for (const auto &ns : namespaces)
-        {
-            ns.generateDefinitionCode(header);
-        }
+        file_namespace->generateDefinitionCode(header);
 
         impl << "#include <test.gen.hpp>" << std::endl;
-        for (const auto &ns : namespaces)
-        {
-            ns.generateImplementationCode(impl);
-        }
+        file_namespace->generateImplementationCode(impl, kEmpty);
     }
 };
 

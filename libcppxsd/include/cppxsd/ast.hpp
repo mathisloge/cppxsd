@@ -141,7 +141,6 @@ struct XsdBaseElement
     // attributes
     OptionalId id;
     std::string name;
-    QName ref;
 
     // content
     OptionalAnnotation annotation;
@@ -201,6 +200,12 @@ struct xsd_union : XsdBaseElement
 struct element : XsdBaseElement
 {
     static constexpr NameT kName = "element";
+
+    std::optional<QName> ref;
+    std::optional<QName> type;
+    std::optional<QName> substitution_group;
+
+    bool is_abstract;
 
     using Content = boost::variant<boost::recursive_wrapper<simpleType>, boost::recursive_wrapper<complexType>>;
     Content content;

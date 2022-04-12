@@ -98,9 +98,9 @@ struct ConvertToQRef : boost::static_visitor<QNameRef::ElRef>
         throw std::runtime_error("invalid base type");
     }
 };
+
 QNameRef resolveQName(const meta::schema &schema, const std::string_view qname)
 {
-
     const auto ns = get_namespace_prefix(qname);
     // 1. check the current namespace
     // if the current targetNamespace matches, try to resolve the var name with the current schema.
