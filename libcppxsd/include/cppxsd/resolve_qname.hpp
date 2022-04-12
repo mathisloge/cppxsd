@@ -5,18 +5,7 @@
 namespace cppxsd
 {
 
-struct IsValidQName : public boost::static_visitor<bool>
-{
-    bool operator()(const meta::BuildinType &t) const
-    {
-        return t != meta::BuildinType::unknown;
-    }
-    template <typename T>
-    bool operator()(const T &) const
-    {
-        return true;
-    }
-};
+
 
 struct QNameRef
 {
@@ -26,6 +15,13 @@ struct QNameRef
     ElRef ref;
 };
 
-QNameRef LIBCPPXSD_EXPORT resolveQName(const meta::schema &schema, const std::string_view qname);
+struct QNameAnyRef
+{
+    bool resolved;
+    std::string name;
+};
+
+QNameRef LIBCPPXSD_EXPORT resolveQNameStrict(const meta::schema &schema, const std::string_view qname);
+QNameAnyRef LIBCPPXSD_EXPORT resolveQName(const meta::schema &schema, const std::string_view qname);
 
 } // namespace cppxsd

@@ -1,4 +1,5 @@
 #include "cpp_output.hpp"
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <cppxsd/resolve_qname.hpp>
@@ -229,7 +230,7 @@ struct NamespaceBuilder : public NamespaceDef
             //! simple type alias when name && type. E.g.: <xs:element name="myname" type="xs:string"/>
             if (!arg.name.empty() && arg.type.has_value())
             {
-                const auto type_ref = cppxsd::resolveQName(state_.schema, arg.type.value().name);
+                const auto type_ref = cppxsd::resolveQNameStrict(state_.schema, arg.type.value().name);
                 const auto visitor = make_lambda_visitor<ObjectDefPtr>(
                     [&](const cppxsd::QNameRef::BuildinRef &x) {
                         auto alias = std::make_unique<TypeAliasDef>();
@@ -247,15 +248,13 @@ struct NamespaceBuilder : public NamespaceDef
             }
             else if (!arg.name.empty() && arg.substitution_group.has_value()) // type inherits from substitution_group
             {
-                // need a simple resolveQName method, which just finds an element with the name in the visible tree. maybe rename current `resolveQName` to `resolveQNameStrict`
+                // need a simple resolveQName method, which just finds an element with the name in the visible tree.
+                // maybe rename current `resolveQName` to `resolveQNameStrict`
                 const auto type_ref = cppxsd::resolveQName(state_.schema, arg.substitution_group.value().name);
 
-                const auto visitor = make_lambda_visitor<std::string>(
-                    [&](const cppxsd::QNameRef::BuildinRef &x) { return std::string{buildintype_to_datatype(x)}; },
-                    [&](const cppxsd::QNameRef::SimpleTypeRef &x) { return x.get().name; });
                 auto obj = std::make_unique<StructDef>();
                 obj->name_ = arg.name;
-                obj->inheritFrom(boost::apply_visitor(visitor, type_ref.ref));
+                obj->inheritFrom(type_ref.name);
                 return obj;
             }
             else if (!arg.name.empty())
@@ -290,7 +289,7 @@ struct NamespaceBuilder : public NamespaceDef
 
 struct FileDef
 {
-    std::string file_name;
+    std::filesystem::path file_name;
     ObjectDefPtr file_namespace;
 
     void process(const meta::schema &schema)
@@ -303,8 +302,14 @@ struct FileDef
     void generateCode() const
     {
         constexpr std::string_view kEmpty = "";
-        std::ofstream header{"test.gen.hpp"};
-        std::ofstream impl{"test.gen.cpp"};
+
+        std::filesystem::path header_file_path{file_name};
+        header_file_path.replace_extension(".hpp");
+        std::ofstream header{header_file_path};
+
+        std::filesystem::path source_file_path{file_name};
+        source_file_path.replace_extension(".cpp");
+        std::ofstream impl{source_file_path};
 
         header << "#pragma once" << std::endl;
         header << "#include <string>" << std::endl;
@@ -446,7 +451,7 @@ struct Visit : boost::static_visitor<void>
 void CppOutput::operator()(const meta::schema &i)
 {
     FileDef filedef;
-    filedef.file_name = i.file_name; // todo
+    filedef.file_name = i.uri; // todo
     filedef.process(i);
 
     filedef.generateCode();

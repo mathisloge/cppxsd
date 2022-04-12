@@ -99,7 +99,40 @@ struct ConvertToQRef : boost::static_visitor<QNameRef::ElRef>
     }
 };
 
-QNameRef resolveQName(const meta::schema &schema, const std::string_view qname)
+struct LaxConvertToQRef : boost::static_visitor<QNameAnyRef>
+{
+    template <Named T>
+    QNameAnyRef operator()(const T &ref) const
+    {
+        return QNameAnyRef{true, ref.name};
+    }
+
+    QNameAnyRef operator()(const BuildinType &ref) const
+    {
+        return QNameAnyRef{true, "builtin"};
+    }
+
+    template <typename T>
+    QNameAnyRef operator()(const T &) const
+    {
+        return QNameAnyRef{false};
+    }
+};
+
+struct IsValidQName : public boost::static_visitor<bool>
+{
+    bool operator()(const meta::BuildinType &t) const
+    {
+        return t != meta::BuildinType::unknown;
+    }
+    template <typename T>
+    bool operator()(const T &) const
+    {
+        return true;
+    }
+};
+
+QNameRef resolveQNameStrict(const meta::schema &schema, const std::string_view qname)
 {
     const auto ns = get_namespace_prefix(qname);
     // 1. check the current namespace
@@ -147,12 +180,68 @@ QNameRef resolveQName(const meta::schema &schema, const std::string_view qname)
                                                inc);
         if (schema_ptr)
         {
-            const auto schema_qname_ref = resolveQName(*schema_ptr, qname);
+            const auto schema_qname_ref = resolveQNameStrict(*schema_ptr, qname);
             if (boost::apply_visitor(IsValidQName(), schema_qname_ref.ref))
                 return schema_qname_ref;
         }
     }
     return QNameRef{BuildinType::unknown};
+}
+
+QNameAnyRef resolveQName(const meta::schema &schema, const std::string_view qname)
+{
+    const auto ns = get_namespace_prefix(qname);
+    // 1. check the current namespace
+    // if the current targetNamespace matches, try to resolve the var name with the current schema.
+    if (!schema.targetNamespace.expired())
+    {
+        const auto tref = schema.targetNamespace.lock();
+        const bool own_ns_matches = ns == kEmptyNamespace ? !tref->prefix.has_value() : tref->prefix == ns;
+        if (own_ns_matches)
+        {
+            for (const auto &c : schema.contents)
+            {
+                if (boost::apply_visitor(FindQName{qname}, c))
+                {
+                    return boost::apply_visitor(LaxConvertToQRef(), c);
+                }
+            }
+        }
+    }
+
+    // 2. search in the other namespaces.
+    auto ns_view = schema.namespaces | std::views::filter([ns](const std::shared_ptr<meta::xmlns_namespace> &xmlns) {
+                       // when ns has no prefix, search for namespaces which don't have an prefix.
+                       // when ns has a prefix, search for all namespaces with such a prefix.
+                       return ns == kEmptyNamespace ? !xmlns->prefix.has_value() : xmlns->prefix == ns;
+                   });
+
+    // 3. try to resolve buildin types.
+    for (const auto &x : ns_view | std::views::filter([](const auto &ns) { return is_buildin_xsd_schema(ns->uri); }))
+    {
+        const auto buildin_ref = resolveQNameXSD(qname);
+        if (buildin_ref != BuildinType::unknown)
+            return LaxConvertToQRef()(buildin_ref);
+    }
+
+    // search in imported or included schemas iff the searched qname isn't in the current schema or not a buildin type
+    auto uri_string_view =
+        ns_view | std::views::transform([](const std::shared_ptr<meta::xmlns_namespace> &xmlns) { return xmlns->uri; });
+    for (const auto &inc : schema.imports)
+    {
+        auto schema_ptr = boost::apply_visitor(GetSchemaOp([&](const std::string_view uri) {
+                                                   return std::ranges::any_of(
+                                                       uri_string_view, [uri](const auto &s) { return s == uri; });
+                                               }),
+                                               inc);
+        if (schema_ptr)
+        {
+            const auto schema_qname_ref = resolveQName(*schema_ptr, qname);
+            if (schema_qname_ref.resolved)
+                return schema_qname_ref;
+        }
+    }
+    return QNameAnyRef{false};
 }
 
 } // namespace cppxsd

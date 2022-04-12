@@ -396,7 +396,6 @@ struct schema
 {
     static constexpr NameT kName = "schema";
 
-    std::string file_name;
     std::string uri;
     // attributes
     OptionalId id;

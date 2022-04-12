@@ -85,7 +85,7 @@ struct StructDef : public ObjectDef
     {
         header << fmt::format("struct {name} {inherit}",
                               fmt::arg("name", name_),
-                              fmt::arg("inherit", inherits_from_.empty() ? "" : fmt::format(" : {}", inherits_from_)))
+                              fmt::arg("inherit", inherits_from_.empty() ? "" : fmt::format(": public {} ", inherits_from_)))
                << '{' << std::endl;
         for (const auto &obj : objs_)
             obj->generateDefinitionCode(header);

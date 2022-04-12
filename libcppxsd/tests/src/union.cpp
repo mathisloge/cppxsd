@@ -11,7 +11,7 @@ using QRef = cppxsd::QNameRef;
 template <typename ReqT>
 void validate_qname(const m::schema &s, const std::string_view qname_str)
 {
-    const auto qname = cppxsd::resolveQName(s, qname_str);
+    const auto qname = cppxsd::resolveQNameStrict(s, qname_str);
     REQUIRE_NOTHROW(boost::apply_visitor(require_type<ReqT>{}, qname.ref));
 };
 

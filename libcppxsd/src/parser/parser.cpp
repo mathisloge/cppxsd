@@ -185,7 +185,7 @@ void Parser::parseSchema(const pugi::xml_node &node, const std::string_view uri)
     auto schema = std::make_shared<meta::schema>();
     state.current_schema = schema;
     schema->uri = uri;
-
+    
     // attribute: xmlns
     for (const auto &attr : node.attributes())
     {
@@ -346,7 +346,7 @@ meta::element Parser::parseElement(const pugi::xml_node &node) const
                     fmt::format("substitution_group: can't find qname of {}", item.substitution_group->name)};
         }
     }
-    
+
     item.is_abstract = node.attribute("abstract").as_bool(false);
     //! TODO: implement all attributes
 

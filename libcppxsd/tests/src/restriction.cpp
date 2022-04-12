@@ -37,7 +37,7 @@ TEST_CASE("restriction")
                 boost::apply_visitor(
                     require_type<m::restriction>{[&](const m::restriction &restr) {
                         REQUIRE(restr.base.name == "string");
-                        const auto qname = cppxsd::resolveQName(*res_schema, restr.base.name);
+                        const auto qname = cppxsd::resolveQNameStrict(*res_schema, restr.base.name);
                         REQUIRE_NOTHROW(boost::apply_visitor(require_type<QRef::BuildinRef>{}, qname.ref));
                         boost::apply_visitor(require_type<QRef::BuildinRef>{[](const QRef::BuildinRef t) {
                                                  REQUIRE(t == QRef::BuildinRef::xsd_string);
@@ -80,7 +80,7 @@ TEST_CASE("restriction")
                 boost::apply_visitor(
                     require_type<m::restriction>{[&](const m::restriction &restr) {
                         REQUIRE(restr.base.name == "myns:NameType");
-                        const auto qname = cppxsd::resolveQName(*res_schema, restr.base.name);
+                        const auto qname = cppxsd::resolveQNameStrict(*res_schema, restr.base.name);
                         REQUIRE_NOTHROW(boost::apply_visitor(require_type<QRef::SimpleTypeRef>{}, qname.ref));
                         boost::apply_visitor(require_type<QRef::SimpleTypeRef>{[](const QRef::SimpleTypeRef &t) {
                                                  REQUIRE(t.get().name == "NameType");
