@@ -34,6 +34,9 @@ SchemaContainer parse(const fs::path &file)
         const auto dir = file.is_relative() ? fs::current_path() : file.parent_path();
         parser::Parser p{dir};
         p.parse(file.string());
+
+        out::CppOutput o{};
+        o(*p.state.schemas[0]);
         return p.state.schemas;
     }
 }

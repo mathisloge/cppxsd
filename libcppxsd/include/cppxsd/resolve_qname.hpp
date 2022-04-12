@@ -26,6 +26,6 @@ struct QNameRef
     ElRef ref;
 };
 
-QNameRef LIBCPPXSD_EXPORT resolveQName(const std::shared_ptr<meta::schema> &schema, const std::string_view qname);
+QNameRef LIBCPPXSD_EXPORT resolveQName(const meta::schema &schema, const std::string_view qname);
 
 } // namespace cppxsd

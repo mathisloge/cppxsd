@@ -9,7 +9,7 @@ namespace m = cppxsd::meta;
 using QRef = cppxsd::QNameRef;
 
 template <typename ReqT>
-void validate_qname(const std::shared_ptr<m::schema> &s, const std::string_view qname_str)
+void validate_qname(const m::schema &s, const std::string_view qname_str)
 {
     const auto qname = cppxsd::resolveQName(s, qname_str);
     REQUIRE_NOTHROW(boost::apply_visitor(require_type<ReqT>{}, qname.ref));
@@ -60,9 +60,9 @@ TEST_CASE("union")
                                          REQUIRE(item.memberTypes[1].name == "fontbystringname");
                                          REQUIRE(item.memberTypes[2].name == "xs:integer");
 
-                                         validate_qname<QRef::SimpleTypeRef>(res_schema, item.memberTypes[0].name);
-                                         validate_qname<QRef::SimpleTypeRef>(res_schema, item.memberTypes[1].name);
-                                         validate_qname<QRef::BuildinRef>(res_schema, item.memberTypes[2].name);
+                                         validate_qname<QRef::SimpleTypeRef>(*res_schema, item.memberTypes[0].name);
+                                         validate_qname<QRef::SimpleTypeRef>(*res_schema, item.memberTypes[1].name);
+                                         validate_qname<QRef::BuildinRef>(*res_schema, item.memberTypes[2].name);
                                      }},
                                      simpleType.content);
             }},

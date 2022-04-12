@@ -98,19 +98,19 @@ struct ConvertToQRef : boost::static_visitor<QNameRef::ElRef>
         throw std::runtime_error("invalid base type");
     }
 };
-QNameRef resolveQName(const std::shared_ptr<meta::schema> &schema, const std::string_view qname)
+QNameRef resolveQName(const meta::schema &schema, const std::string_view qname)
 {
 
     const auto ns = get_namespace_prefix(qname);
     // 1. check the current namespace
     // if the current targetNamespace matches, try to resolve the var name with the current schema.
-    if (!schema->targetNamespace.expired())
+    if (!schema.targetNamespace.expired())
     {
-        const auto tref = schema->targetNamespace.lock();
+        const auto tref = schema.targetNamespace.lock();
         const bool own_ns_matches = ns == kEmptyNamespace ? !tref->prefix.has_value() : tref->prefix == ns;
         if (own_ns_matches)
         {
-            for (const auto &c : schema->contents)
+            for (const auto &c : schema.contents)
             {
                 if (boost::apply_visitor(FindQName{qname}, c))
                 {
@@ -121,7 +121,7 @@ QNameRef resolveQName(const std::shared_ptr<meta::schema> &schema, const std::st
     }
 
     // 2. search in the other namespaces.
-    auto ns_view = schema->namespaces | std::views::filter([ns](const std::shared_ptr<meta::xmlns_namespace> &xmlns) {
+    auto ns_view = schema.namespaces | std::views::filter([ns](const std::shared_ptr<meta::xmlns_namespace> &xmlns) {
                        // when ns has no prefix, search for namespaces which don't have an prefix.
                        // when ns has a prefix, search for all namespaces with such a prefix.
                        return ns == kEmptyNamespace ? !xmlns->prefix.has_value() : xmlns->prefix == ns;
@@ -138,7 +138,7 @@ QNameRef resolveQName(const std::shared_ptr<meta::schema> &schema, const std::st
     // search in imported or included schemas iff the searched qname isn't in the current schema or not a buildin type
     auto uri_string_view =
         ns_view | std::views::transform([](const std::shared_ptr<meta::xmlns_namespace> &xmlns) { return xmlns->uri; });
-    for (const auto &inc : schema->imports)
+    for (const auto &inc : schema.imports)
     {
         auto schema_ptr = boost::apply_visitor(GetSchemaOp([&](const std::string_view uri) {
                                                    return std::ranges::any_of(
@@ -147,7 +147,7 @@ QNameRef resolveQName(const std::shared_ptr<meta::schema> &schema, const std::st
                                                inc);
         if (schema_ptr)
         {
-            const auto schema_qname_ref = resolveQName(schema_ptr, qname);
+            const auto schema_qname_ref = resolveQName(*schema_ptr, qname);
             if (boost::apply_visitor(IsValidQName(), schema_qname_ref.ref))
                 return schema_qname_ref;
         }

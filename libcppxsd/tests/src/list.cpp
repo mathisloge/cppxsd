@@ -37,7 +37,7 @@ TEST_CASE("list")
 
                         boost::apply_visitor(
                             require_type<m::QName>{[&](const m::QName &qname_ref) {
-                                const auto qname = cppxsd::resolveQName(res_schema, qname_ref.name);
+                                const auto qname = cppxsd::resolveQName(*res_schema, qname_ref.name);
                                 REQUIRE_NOTHROW(boost::apply_visitor(require_type<m::BuildinType>{}, qname.ref));
                                 boost::apply_visitor(require_type<m::BuildinType>{[](const m::BuildinType t) {
                                                          REQUIRE(t == m::BuildinType::xsd_integer);
