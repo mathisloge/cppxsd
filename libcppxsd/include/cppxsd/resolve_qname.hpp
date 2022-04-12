@@ -21,6 +21,9 @@ struct QNameAnyRef
     std::string name;
 };
 
+
+//! wrong... qname can reference any node which can be named. I guess this should be an templated function to get only the needed qnames. 
+//! maybe add a laxed version which don't throws but instead returns an optional object or make strict directly "lax"
 QNameRef LIBCPPXSD_EXPORT resolveQNameStrict(const meta::schema &schema, const std::string_view qname);
 QNameAnyRef LIBCPPXSD_EXPORT resolveQName(const meta::schema &schema, const std::string_view qname);
 
